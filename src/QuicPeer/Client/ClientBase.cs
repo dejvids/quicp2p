@@ -1,24 +1,26 @@
-﻿using System.Net;
+﻿using Microsoft.Extensions.Options;
+using QuicPeer.Options;
 using System.Net.Quic;
 using System.Net.Security;
-using System.Runtime.Versioning;
 using System.Security.Cryptography.X509Certificates;
 
 namespace QuicPeer.Client;
 
-[SupportedOSPlatform("windows")]
-[SupportedOSPlatform("linux")]
-[SupportedOSPlatform("macos")]
-public abstract class ClientBase
+public abstract class ClientBase(ILogger logger, IOptions<ClientOptions> options)
 {
-    public async Task RunClientAsync()
+    protected ILogger Logger { get; } = logger;
+    protected ClientOptions Options => options.Value;
+    protected abstract Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct);
+    public async Task RunClientAsync(CancellationToken ct)
     {
         try
         {
             var options = BootstrapClient();
+            options.ClientAuthenticationOptions.LocalCertificateSelectionCallback = LoadClientCertificate;
 
-            await Task.Delay(1000);
-            await RunClientInternal(options);
+
+            await Task.Delay(1000, ct);
+            await RunClientInternal(options, ct);
         }
         catch (NotSupportedException ex)
         {
@@ -26,7 +28,7 @@ public abstract class ClientBase
         }
     }
 
-    private static QuicClientConnectionOptions BootstrapClient()
+    private QuicClientConnectionOptions BootstrapClient()
     {
         if (!QuicConnection.IsSupported)
         {
@@ -35,21 +37,26 @@ public abstract class ClientBase
 
         QuicClientConnectionOptions options = new()
         {
-            DefaultStreamErrorCode = 0xA,
-            DefaultCloseErrorCode = 0xB,
+            DefaultStreamErrorCode = Options.DefaultStreamErrorCode,
+            DefaultCloseErrorCode = Options.DefaultCloseErrorCode,
             ClientAuthenticationOptions = new()
             {
-                ApplicationProtocols = [new SslApplicationProtocol("quic-peer")],
+                ApplicationProtocols = [Options.ClientCertificate.ApplicationProtocol],
                 RemoteCertificateValidationCallback = ValidateServerCertificate
             },
-            MaxInboundBidirectionalStreams = 10,
-            MaxInboundUnidirectionalStreams = 10
+            MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams,
+            MaxInboundUnidirectionalStreams = Options.MaxInboundUnidirectionalStreams,
         };
 
         return options;
     }
 
-    protected abstract Task RunClientInternal(QuicClientConnectionOptions options);
+
+    private X509Certificate2? LoadClientCertificate(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate? remoteCertificate, string[] acceptableIssuers)
+    {
+        string certPath = Options.ClientCertificate.Path;
+        return X509CertificateLoader.LoadPkcs12FromFile(certPath, string.Empty);
+    }
 
     static bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
     {

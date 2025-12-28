@@ -1,4 +1,6 @@
 ﻿
+using Microsoft.Extensions.Options;
+using QuicPeer.Options;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography;
@@ -6,23 +8,23 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace QuicPeer.Server;
 
-public abstract class ServerBase
+public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger logger) : BackgroundService
 {
-    private const string CertPath = "peer.pfx";
-    protected abstract SslApplicationProtocol ApplicationProtocol { get; }
-    protected virtual int Port => 501;
+    protected ILogger Logger { get; } = logger;
+    protected ServerOptions Options { get; } = serverOptions.Value;
+   
     public async Task RunServerAsync()
     {
         try
         {
             EnsureProtocolSupport();
-            var serverCertificate = await LoadServerCertificate();
+            var serverCertificate = await LoadServerCertificate(Options.ServerCertificate);
             var options = BootstrapServer(serverCertificate);
             await RunServerInternal(options);
         }
         catch (NotSupportedException ex)
         {
-            Console.WriteLine(ex.Message);
+            Logger.LogError(ex, ex.Message);
         }
     }
 
@@ -30,8 +32,8 @@ public abstract class ServerBase
     {
         return new QuicListenerOptions
         {
-            ApplicationProtocols = [ApplicationProtocol],
-            ListenEndPoint = new System.Net.IPEndPoint(System.Net.IPAddress.Any, Port),
+            ApplicationProtocols = [Options.ServerCertificate.ApplicationProtocol],
+            ListenEndPoint = new System.Net.IPEndPoint(System.Net.IPAddress.Any, Options.Port),
 
             ConnectionOptionsCallback = async (_, _, _) => await GetConnectionOptionsAsync(serverCertificate)
         };
@@ -41,16 +43,16 @@ public abstract class ServerBase
     {
         QuicServerConnectionOptions connectionOptions = new()
         {
-            DefaultStreamErrorCode = 0xA,
-            DefaultCloseErrorCode = 0xB,
+            DefaultStreamErrorCode = Options.DefaultStreamErrorCode,
+            DefaultCloseErrorCode = Options.DefaultCloseErrorCode,
             ServerAuthenticationOptions = new SslServerAuthenticationOptions
             {
-                ApplicationProtocols = [ApplicationProtocol],
+                ApplicationProtocols = [Options.ServerCertificate.ApplicationProtocol],
                 ServerCertificate = serverCertificate
             },
-            IdleTimeout = TimeSpan.FromSeconds(30),
-            MaxInboundUnidirectionalStreams = 10,
-            MaxInboundBidirectionalStreams = 10
+            IdleTimeout = TimeSpan.FromSeconds(Options.IdleTimeout),
+            MaxInboundUnidirectionalStreams = Options.MaxInboundUnidirectionalStreams,
+            MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams
         };
 
         return ValueTask.FromResult(connectionOptions);
@@ -71,16 +73,16 @@ public abstract class ServerBase
         }
     }
 
-    private static async ValueTask<X509Certificate2> LoadServerCertificate()
+    private async ValueTask<X509Certificate2> LoadServerCertificate(CertificateOptions certificateOptions)
     {
-        if (!File.Exists(CertPath))
+        if (!File.Exists(certificateOptions.Path))
         {
-            await CreateSelfSignedCertficate(CertPath);
-            Console.WriteLine($"Created Self-Signed certificate {CertPath}");
+            await CreateSelfSignedCertficate(certificateOptions.Path);
+            Console.WriteLine($"Created Self-Signed certificate {certificateOptions.Path}");
         }
 
-        Console.WriteLine("Loading Self-Signed certificate from file");
-        return X509CertificateLoader.LoadPkcs12FromFile(CertPath, string.Empty);
+        Logger.LogInformation("Loading Self-Signed certificate from file");
+        return X509CertificateLoader.LoadPkcs12FromFile(certificateOptions.Path, string.Empty);
     }
 
     private static async Task CreateSelfSignedCertficate(string certPath)

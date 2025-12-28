@@ -1,28 +1,45 @@
-﻿using System.Net;
+﻿using Microsoft.Extensions.Options;
+using QuicPeer.Options;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+
 namespace QuicPeer.Server;
 
-public sealed class PeerServer(int port) : ServerBase, IAsyncDisposable
+public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<PeerServer> logger)
+    : ServerBase(configuration, logger), IAsyncDisposable
 {
     private QuicListener? _listener;
     private Task? _newConnectionsHandler;
-    private CancellationTokenSource? _cancellationTokenSource;
+    private CancellationTokenSource _cancellationTokenSource;
 
-    protected override SslApplicationProtocol ApplicationProtocol { get; } = new SslApplicationProtocol("quic-peer");
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        await RunServerAsync();
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+
+                await Task.Delay(1000, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
 
     protected override async Task RunServerInternal(QuicListenerOptions options)
     {
-        options.ListenEndPoint = new IPEndPoint(IPAddress.Any, port);
-
         _listener = await QuicListener.ListenAsync(options);
-        _cancellationTokenSource = new CancellationTokenSource();
         _newConnectionsHandler = Task.Factory.StartNew(async () => await HandleNewConnections(_listener, _cancellationTokenSource.Token),
             TaskCreationOptions.LongRunning);
 
-        Console.WriteLine($"Listening on {_listener.LocalEndPoint}");
+        Logger.LogInformation("Listening on {Endpoint}", _listener.LocalEndPoint);
     }
 
     protected override async ValueTask<QuicServerConnectionOptions> GetConnectionOptionsAsync(X509Certificate2 serverCertificate)
@@ -34,13 +51,13 @@ public sealed class PeerServer(int port) : ServerBase, IAsyncDisposable
                 {
                     if (certificate is not null)
                     {
-                        Console.WriteLine("Client certificate received.");
+                        Logger.LogInformation("Client certificate received.");
                         //Accept any certificate for poc purposes.
                         return true;
                     }
                     if (sslPolicyErrors != SslPolicyErrors.None)
                     {
-                        Console.WriteLine($"SSL Policy Errors: {sslPolicyErrors}");
+                        Logger.LogError("SSL Policy Errors: {Errors}", sslPolicyErrors);
                         return false;
                     }
                     return true;
@@ -55,7 +72,7 @@ public sealed class PeerServer(int port) : ServerBase, IAsyncDisposable
         {
             var newConnection = await listener.AcceptConnectionAsync(ct);
 
-            Console.WriteLine($"New connection from {newConnection.RemoteEndPoint}");
+            Logger.LogInformation("New connection from {RemoteEndpoint}", newConnection.RemoteEndPoint);
 
             _ = Task.Run(async () =>
             {
@@ -63,11 +80,11 @@ public sealed class PeerServer(int port) : ServerBase, IAsyncDisposable
                 while (!ct.IsCancellationRequested)
                 {
                     using var stream = await newConnection.AcceptInboundStreamAsync(ct);
-                    
+
                     var readBytes = await stream.ReadAsync(buffer, 0, buffer.Length);
                     var payload = buffer.AsSpan(0, readBytes);
                     var message = Encoding.UTF8.GetString(payload);
-                    
+
                     Console.WriteLine($"Received: {message}");
                 }
             });
@@ -76,7 +93,7 @@ public sealed class PeerServer(int port) : ServerBase, IAsyncDisposable
 
     public async Task StopAsync()
     {
-        Console.WriteLine($"Stopping listener on port {port}");
+        Console.WriteLine($"Stopping listener on port {501}");
 
         _cancellationTokenSource?.CancelAsync();
 
@@ -92,7 +109,7 @@ public sealed class PeerServer(int port) : ServerBase, IAsyncDisposable
             }
         }
 
-        Console.WriteLine("Server stopped");
+        Logger.LogWarning("Server stopped");
     }
 
     public async ValueTask DisposeAsync()

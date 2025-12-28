@@ -1,0 +1,10 @@
+﻿using Microsoft.Extensions.Options;
+
+namespace QuicPeer.Options;
+
+public class ServerOptions : PeerConnectionOptions
+{
+    public const string SectionName = "Server";
+    public int Port { get; set; } = 501;
+    public required CertificateOptions ServerCertificate { get; set; }
+}

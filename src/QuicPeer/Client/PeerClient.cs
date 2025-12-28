@@ -1,25 +1,27 @@
-﻿using System.Net;
+﻿using Microsoft.Extensions.Options;
+using QuicPeer.Options;
+using System.Net;
 using System.Net.Quic;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace QuicPeer.Client;
 
-public sealed class PeerClient(IPEndPoint remoteEndpoint) : ClientBase, IAsyncDisposable
+public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOptions> options, IPEndPoint remoteEndpoint) 
+    : ClientBase(logger, options), IAsyncDisposable
 {
     private CancellationTokenSource _cts = new();
 
     private QuicConnection? _connection;
-    protected override async Task RunClientInternal(QuicClientConnectionOptions options)
+    protected override async Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct)
     {
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         options.RemoteEndPoint = remoteEndpoint;
-        options.ClientAuthenticationOptions.LocalCertificateSelectionCallback = LoadClientCertificate;
         options.ClientAuthenticationOptions.TargetHost = remoteEndpoint.Address.ToString();
 
         try
         {
             Console.WriteLine($"Connecting to {remoteEndpoint}...");
-            var connection = await QuicConnection.ConnectAsync(options);
+            var connection = await QuicConnection.ConnectAsync(options, ct);
             _connection = connection;
             
             Console.WriteLine($"Connected to {remoteEndpoint}");
@@ -47,11 +49,6 @@ public sealed class PeerClient(IPEndPoint remoteEndpoint) : ClientBase, IAsyncDi
         textStream.Close();
     }
 
-    private X509Certificate? LoadClientCertificate(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate? remoteCertificate, string[] acceptableIssuers)
-    {
-        const string certPath = "peer.pfx";
-        return X509CertificateLoader.LoadPkcs12FromFile(certPath, string.Empty);
-    }
 
     public async Task DisconnectAsync()
     {
