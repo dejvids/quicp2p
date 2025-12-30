@@ -1,29 +1,24 @@
 ﻿using System.Net;
+using System.Threading.Channels;
 
 namespace QuicPeer.Client;
 
-public class PeerConnector(IPeerClientFactory clientFactory, ILogger<PeerConnector> logger) : IHostedService
+public class PeerConnector(IPeerClientFactory clientFactory, ILogger<PeerConnector> logger, Channel<string> commandCahnnel) : IHostedService
 {
     private readonly ILogger<PeerConnector> _logger = logger;
     private readonly IPeerClientFactory _clientFactory = clientFactory;
+    private readonly Channel<string> _commandChannel = commandCahnnel;
     public async Task RunAsync(CancellationToken ct)
     {
         _logger.LogInformation("PeerConnector is running.");
 
         CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        while (!ct.IsCancellationRequested)
+        await foreach (var command in _commandChannel.Reader.ReadAllAsync(ct))
         {
-            var command = Console.ReadLine();
             if (command is null)
             {
                 continue;
-            }
-
-            if (command.Equals("/exit", StringComparison.OrdinalIgnoreCase))
-            {
-                cts.Cancel();
-                break;
             }
 
             if (command.StartsWith("/connect ", StringComparison.OrdinalIgnoreCase))

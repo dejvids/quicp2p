@@ -18,19 +18,10 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
     {
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         await RunServerAsync();
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-
-                await Task.Delay(1000, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
+        
+        var tcs = new TaskCompletionSource();
+        using var _ = stoppingToken.Register(() => tcs.SetResult());
+        await tcs.Task;
     }
 
     protected override async Task RunServerInternal(QuicListenerOptions options)
@@ -91,7 +82,7 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
         }
     }
 
-    public async Task StopAsync()
+    public override async Task StopAsync(CancellationToken cancellationToken)
     {
         Console.WriteLine($"Stopping listener on port {501}");
 
@@ -108,6 +99,8 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
                 Console.WriteLine("Accepting new connections cancelled");
             }
         }
+
+        await base.StopAsync(cancellationToken);
 
         Logger.LogWarning("Server stopped");
     }
