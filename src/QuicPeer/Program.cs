@@ -3,15 +3,15 @@ using Microsoft.Extensions.Options;
 using QuicPeer.Client;
 using QuicPeer.Options;
 using QuicPeer.Server;
+using QuicPeer.Logging;
 
 [assembly: SupportedOSPlatform("windows")]
 [assembly: SupportedOSPlatform("linux")]
 [assembly: SupportedOSPlatform("macos")]
 
 
-CancellationTokenSource cts = new();
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddLogging(configure => configure.AddConsole());
+builder.Services.AddSerilogLogging();
 builder.Services.AddHostedService<PeerServer>();
 builder.Services.AddHostedService<PeerConnector>();
 builder.Services.AddScoped<IPeerClientFactory, PeerClientFactory>();
@@ -30,4 +30,6 @@ builder.Services.AddOptionsWithValidateOnStart<ClientOptions>()
     }).Bind(builder.Configuration.GetSection(ClientOptions.SectionName));
 
 var app = builder.Build();
+CancellationTokenSource cts = new();
 await app.StartAsync(cts.Token);
+

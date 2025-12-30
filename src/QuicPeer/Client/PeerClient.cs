@@ -25,10 +25,11 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
             _connection = connection;
             
             Console.WriteLine($"Connected to {remoteEndpoint}");
+            Logger.LogInformation("Connected to {Endpoint}", remoteEndpoint);
         }
         catch (QuicException ex)
         {
-            Console.WriteLine($"Failed to connect to {remoteEndpoint}: {ex.Message}");
+            Logger.LogError(ex,"Failed to connect to {Endpoint}", remoteEndpoint);
             throw;
         }
     }
