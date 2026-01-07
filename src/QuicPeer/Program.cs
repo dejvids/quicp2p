@@ -1,21 +1,23 @@
-﻿using System.Runtime.Versioning;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
+using QuicPeer;
 using QuicPeer.Client;
+using QuicPeer.Logging;
 using QuicPeer.Options;
 using QuicPeer.Server;
-using QuicPeer.Logging;
-using System.Threading.Channels;
-using Serilog;
+using QuicPeer.Server.Commands;
+using System.Runtime.Versioning;
 
 [assembly: SupportedOSPlatform("windows")]
 [assembly: SupportedOSPlatform("linux")]
 [assembly: SupportedOSPlatform("macos")]
 
 
+
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSerilogLogging();
 builder.Services.AddHostedService<PeerServer>();
-builder.Services.AddHostedService<PeerConnector>();
+builder.Services.AddHostedService<ConsoleApp>();
+builder.Services.AddSingleton<PeerConnector>();
 builder.Services.AddScoped<IPeerClientFactory, PeerClientFactory>();
 
 builder.Services.AddOptionsWithValidateOnStart<CertificateOptions>()
@@ -31,41 +33,11 @@ builder.Services.AddOptionsWithValidateOnStart<ClientOptions>()
         clientOptions.ClientCertificate = certificateOptions.Value;
     }).Bind(builder.Configuration.GetSection(ClientOptions.SectionName));
 
-var commandChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(100)
-{
-    SingleReader = true,
-    SingleWriter = true
-});
+var serverMessageQueue = new ServerMessageQueue();
 
-builder.Services.AddSingleton(commandChannel);
+builder.Services.AddSingleton<IMessageQueue<IServerCommand>, ServerMessageQueue>();
 
 var app = builder.Build();
 CancellationTokenSource cts = new();
 
-var consoleInputTask = Task.Run(async () =>
-{
-    Log.Logger.Information("Console input task started.");
-    Console.WriteLine("Enter commands (e.g., /connect <IP:Port>, /exit to quit):");
-    while (!cts.Token.IsCancellationRequested)
-    {
-        var input = Console.ReadLine();
-        if (input is null)
-        {
-            continue;
-        }
-        if (input.Equals("/exit", StringComparison.OrdinalIgnoreCase))
-        {
-            Log.Logger.Information("Exit command received. Shutting down...");
-            Console.WriteLine("Shutting down...");
-            cts.Cancel();
-            break;
-        }
-        await commandChannel.Writer.WriteAsync(input, cts.Token);
-    }
-}, cts.Token);
-
 await app.StartAsync(cts.Token);
-
-await app.WaitForShutdownAsync();
-Log.Logger.Information("Application has exited.");
-

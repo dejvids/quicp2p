@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Options;
-using QuicPeer.Options;
-using System.Net;
+﻿using System.Net;
 using System.Net.Quic;
 using System.Text;
+using Microsoft.Extensions.Options;
+using QuicPeer.Options;
 
 namespace QuicPeer.Client;
 
@@ -20,11 +20,9 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
 
         try
         {
-            Console.WriteLine($"Connecting to {remoteEndpoint}...");
             var connection = await QuicConnection.ConnectAsync(options, ct);
             _connection = connection;
             
-            Console.WriteLine($"Connected to {remoteEndpoint}");
             Logger.LogInformation("Connected to {Endpoint}", remoteEndpoint);
         }
         catch (QuicException ex)
@@ -54,8 +52,7 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
     public async Task DisconnectAsync()
     {
         await _cts.CancelAsync();
-
-        Console.WriteLine("Peer disconnected");
+        Logger.LogInformation("Peer disconnected.");
     }
 
     public async ValueTask DisposeAsync()

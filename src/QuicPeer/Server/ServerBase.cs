@@ -1,10 +1,10 @@
 ﻿
-using Microsoft.Extensions.Options;
-using QuicPeer.Options;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Options;
+using QuicPeer.Options;
 
 namespace QuicPeer.Server;
 
@@ -78,7 +78,7 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
         if (!File.Exists(certificateOptions.Path))
         {
             await CreateSelfSignedCertficate(certificateOptions.Path);
-            Console.WriteLine($"Created Self-Signed certificate {certificateOptions.Path}");
+            Logger.LogInformation("Created Self-Signed certificate {Path}", certificateOptions.Path);
         }
 
         Logger.LogInformation("Loading Self-Signed certificate from file");
