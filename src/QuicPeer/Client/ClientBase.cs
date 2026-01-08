@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Options;
-using QuicPeer.Options;
-using System.Net.Quic;
+﻿using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Options;
+using QuicPeer.Options;
 
 namespace QuicPeer.Client;
 
@@ -46,6 +46,7 @@ public abstract class ClientBase(ILogger logger, IOptions<ClientOptions> options
             },
             MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams,
             MaxInboundUnidirectionalStreams = Options.MaxInboundUnidirectionalStreams,
+            KeepAliveInterval = TimeSpan.FromSeconds(3)
         };
 
         return options;

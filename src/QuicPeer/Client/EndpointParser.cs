@@ -1,7 +1,6 @@
-﻿using System.ComponentModel;
-using System.Net;
+﻿using System.Net;
 
-namespace QuicPeer;
+namespace QuicPeer.Client;
 
 /// <summary>
 /// Provides methods for parsing string representations of network endpoints into <see cref="IPEndPoint"/> instances.

@@ -1,36 +1,29 @@
-﻿using Microsoft.Extensions.Options;
-using QuicPeer.Options;
-using System.Net.Quic;
+﻿using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Options;
+using QuicPeer.Options;
+using QuicPeer.Server.Commands;
 
 namespace QuicPeer.Server;
 
-public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<PeerServer> logger)
+public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<PeerServer> logger, IMessageQueue<IServerCommand> messageQueue)
     : ServerBase(configuration, logger), IAsyncDisposable
 {
     private QuicListener? _listener;
     private Task? _newConnectionsHandler;
     private CancellationTokenSource _cancellationTokenSource;
+    private readonly IMessageQueue<IServerCommand> _commandChannel = messageQueue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         await RunServerAsync();
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-
-                await Task.Delay(1000, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
+        var tcs = new TaskCompletionSource();
+        using var _ = stoppingToken.Register(() => tcs.SetResult());
+        await tcs.Task;
     }
 
     protected override async Task RunServerInternal(QuicListenerOptions options)
@@ -85,15 +78,15 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
                     var payload = buffer.AsSpan(0, readBytes);
                     var message = Encoding.UTF8.GetString(payload);
 
-                    Console.WriteLine($"Received: {message}");
+                    await _commandChannel.EnqueueAsync(new MessageCommand(newConnection.RemoteEndPoint.ToString(), message, TimeOnly.FromDateTime(DateTime.Now)));
                 }
             });
         }
     }
 
-    public async Task StopAsync()
+    public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        Console.WriteLine($"Stopping listener on port {501}");
+        Logger.LogInformation($"Stopping listener on port {501}");
 
         _cancellationTokenSource?.CancelAsync();
 
@@ -105,9 +98,11 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("Accepting new connections cancelled");
+                Logger.LogInformation("Accepting new connections cancelled.");
             }
         }
+
+        await base.StopAsync(cancellationToken);
 
         Logger.LogWarning("Server stopped");
     }
