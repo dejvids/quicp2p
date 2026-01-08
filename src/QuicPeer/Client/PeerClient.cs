@@ -32,7 +32,7 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
         }
     }
 
-    internal async Task SendAsync(string message)
+    public async Task SendAsync(string message)
     {
         if (_connection is null)
         {
@@ -48,6 +48,31 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
         textStream.Close();
     }
 
+    public async Task SendAsync(FileInfo file)
+    {
+        if (_connection is null || !File.Exists(file.FullName))
+        {
+            return;
+        }
+        
+        var dataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, _cts.Token);
+        using var fileStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+
+        try
+        {
+            await fileStream.CopyToAsync(dataStream, _cts.Token);
+
+            dataStream.CompleteWrites();
+        }
+        catch (OperationCanceledException)
+        {
+            
+        }
+        finally
+        {
+            dataStream.Dispose();
+        }
+    }
 
     public async Task DisconnectAsync()
     {

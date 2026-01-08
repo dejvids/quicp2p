@@ -11,6 +11,7 @@ internal class ConnectCommand : AppCommand
 
     public override string CommandName { get; } = "Connect";
     protected SendCommand SendCommand { get; } = new();
+    protected SendFileCommand SendFileCommand { get; } = new();
 
     public ConnectCommand(PeerConnector peerConnector)
     {
@@ -33,11 +34,11 @@ internal class ConnectCommand : AppCommand
             return;
         }
 
+        AnsiConsole.MarkupLine("[green]:check_mark: Connected to {0}[/] ", endpoint);
         while (peerClient is not null && !cancellationToken.IsCancellationRequested)
         {
-            AnsiConsole.MarkupLine("[green]:check_mark: Connected to {0}[/] ", endpoint);
             var clientCommand = AnsiConsole.Prompt(new SelectionPrompt<string>()
-                .AddChoices(SendCommand.CommandName, DisconnectCommand));
+                .AddChoices(SendCommand.CommandName, SendFileCommand.CommandName, DisconnectCommand));
 
             if (clientCommand.Equals(DisconnectCommand, StringComparison.OrdinalIgnoreCase))
             {
@@ -55,7 +56,15 @@ internal class ConnectCommand : AppCommand
             if (clientCommand.Equals(SendCommand.CommandName))
             {
                 await SendCommand.Start(peerClient, cancellationToken);
+                continue;
             }
+
+            if(clientCommand.Equals(SendFileCommand.CommandName))
+            {
+                await SendFileCommand.Start(peerClient, cancellationToken);
+                continue;
+            }
+
         }
     }
 }

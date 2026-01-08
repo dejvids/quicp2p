@@ -40,8 +40,16 @@ public class ConsoleApp : IHostedService
             .AddChoices(ExitCommand);
 
         _ = Task.Factory.StartNew(async () => await ReadServerCommands(cancellationToken), TaskCreationOptions.LongRunning);
-       
-        await ShowMenu(mainMenu, cancellationToken);
+
+        try
+        {
+            await ShowMenu(mainMenu, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("Console app has been stopped due to unexpected error.");
+            _logger.LogCritical(ex, "Critical error in console app.");
+        }
     }
 
     private async Task ShowMenu(SelectionPrompt<string> mainMenu, CancellationToken cancellationToken)

@@ -18,12 +18,19 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        await RunServerAsync();
+        try
+        {
+            _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            await RunServerAsync();
 
-        var tcs = new TaskCompletionSource();
-        using var _ = stoppingToken.Register(() => tcs.SetResult());
-        await tcs.Task;
+            var tcs = new TaskCompletionSource();
+            using var _ = stoppingToken.Register(() => tcs.SetResult());
+            await tcs.Task;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogCritical(ex, "Server failed");
+        }
     }
 
     protected override async Task RunServerInternal(QuicListenerOptions options)
@@ -72,7 +79,12 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
                 var buffer = new byte[1000];
                 while (!ct.IsCancellationRequested)
                 {
-                    using var stream = await newConnection.AcceptInboundStreamAsync(ct);
+                    var stream = await newConnection.AcceptInboundStreamAsync(ct);
+                    if(stream.Type is QuicStreamType.Unidirectional)
+                    {
+                        _ = Task.Run(async () => await ReadToFile(stream));
+                        continue;
+                    }
 
                     var readBytes = await stream.ReadAsync(buffer, 0, buffer.Length);
                     var payload = buffer.AsSpan(0, readBytes);
@@ -81,6 +93,21 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
                     await _commandChannel.EnqueueAsync(new MessageCommand(newConnection.RemoteEndPoint.ToString(), message, TimeOnly.FromDateTime(DateTime.Now)));
                 }
             });
+        }
+    }
+
+    private async Task ReadToFile(QuicStream stream)
+    {
+        try
+        {
+            var randomFileName = Path.GetRandomFileName();
+            Directory.CreateDirectory("Downloads");  
+            using var fileStream = new FileStream($"Downloads\\{randomFileName}", FileMode.Create, FileAccess.Write);
+            await stream.CopyToAsync(fileStream);
+        }
+        finally
+        {
+            stream.Dispose();
         }
     }
 
@@ -115,5 +142,6 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
         }
 
         await _listener.DisposeAsync();
+        _cancellationTokenSource.Dispose();
     }
 }
