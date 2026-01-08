@@ -15,7 +15,6 @@ internal class ConnectCommand : AppCommand
     public ConnectCommand(PeerConnector peerConnector)
     {
         _peerConnector = peerConnector;
-
     }
 
     protected override async ValueTask Execute(CancellationToken cancellationToken)
