@@ -26,32 +26,23 @@ public class ConnectCommand : AppCommand
 
     protected override async ValueTask Execute(CancellationToken cancellationToken)
     {
-        PeerClient? peerClient;
+        PeerClient? peerClient = await SetupConnection(cancellationToken);
 
-        while (true)
+        if (peerClient is null)
         {
-            peerClient = await SetupConnection(cancellationToken);
-
-            if (peerClient is null)
-            {
-                if (await AnsiConsole.ConfirmAsync("Retry?"))
-                {
-                    continue;
-                }
-
-                AnsiConsole.Clear();
-                return;
-            }
-
-            AnsiConsole.Clear();
-            break;
+            return;
         }
 
         AnsiConsole.MarkupLine("[green]:check_mark: Connected to [/] {0} ", peerClient.RemoteEndpoint!);
+        await KeepConnection(peerClient, cancellationToken);
+    }
+
+    private async Task KeepConnection(PeerClient? peerClient, CancellationToken cancellationToken)
+    {
         while (peerClient is not null && !cancellationToken.IsCancellationRequested)
         {
             var clientCommand = await AnsiConsole.PromptAsync(new SelectionPrompt<string>()
-                .AddChoices(SendCommand.CommandName, SendFileCommand.CommandName, DisconnectCommand));
+                .AddChoices(SendCommand.CommandName, SendFileCommand.CommandName, DisconnectCommand), cancellationToken);
 
             if (clientCommand.Equals(DisconnectCommand, StringComparison.OrdinalIgnoreCase))
             {
@@ -83,12 +74,28 @@ public class ConnectCommand : AppCommand
 
     private async Task<PeerClient?> SetupConnection(CancellationToken cancellationToken)
     {
+        while (true)
+        {
+            var endpoint = await AnsiConsole.AskAsync<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):", cancellationToken);
 
-        var endpoint = AnsiConsole.Ask<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):");
+            var peerClient = await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Line)
+                .StartAsync("Conecting...", async ctx => await Connect(endpoint, cancellationToken));
 
-        return  await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Line)
-            .StartAsync("Conecting...", async ctx => await Connect(endpoint, cancellationToken));
+            if (peerClient is null)
+            {
+                if (await AnsiConsole.ConfirmAsync("Retry?", true, cancellationToken))
+                {
+                    continue;
+                }
+
+                AnsiConsole.Clear();
+                return null;
+            }
+
+            AnsiConsole.Clear();
+            return peerClient;
+        }
     }
 
     private async Task<PeerClient?> Connect(string endpoint, CancellationToken cancellationToken)

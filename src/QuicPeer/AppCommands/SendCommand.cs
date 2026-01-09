@@ -13,7 +13,7 @@ public class SendCommand : AppCommand<PeerClient>
 
     protected override async ValueTask Execute(PeerClient peerClient, CancellationToken cancellationToken)
     {
-        var message = AnsiConsole.Ask<string>("Enter the [green]message[/] to send:");
+        var message = await AnsiConsole.AskAsync<string>("Enter the [green]message[/] to send:", cancellationToken);
         if (string.IsNullOrWhiteSpace(message))
         {
             AnsiConsole.WriteLine("Message cannot be empty.");
@@ -24,7 +24,7 @@ public class SendCommand : AppCommand<PeerClient>
         {
             await peerClient.SendAsync(message);
             AnsiConsole.MarkupLine("[green4]Message sent.[/]");
-            await AnsiConsole.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty());
+            await AnsiConsole.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty(), cancellationToken);
             AnsiConsole.Clear();
         }
         catch (Exception ex)

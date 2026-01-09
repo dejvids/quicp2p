@@ -13,10 +13,10 @@ public class SendFileCommand : AppCommand<PeerClient>
     protected override async ValueTask Execute(PeerClient peerClient, CancellationToken cancellationToken)
     {
         AnsiConsole.Clear();
-        var fileToSend = GetFile();
 
         try
         {
+            var fileToSend = await GetFileAsync(cancellationToken);
             await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Line)
                 .StartAsync("Sending...", async ctx => await peerClient.SendAsync(fileToSend));
@@ -32,12 +32,12 @@ public class SendFileCommand : AppCommand<PeerClient>
 
         finally
         {
-            await AnsiConsole.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty());
+            await AnsiConsole.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty(), cancellationToken);
             AnsiConsole.Clear();
         }
     }
 
-    private static FileInfo GetFile()
+    private static async Task<FileInfo> GetFileAsync(CancellationToken cancellationToken)
     {
         var prompt = new TextPrompt<string>("Select path")
             .Validate(path =>
@@ -55,7 +55,7 @@ public class SendFileCommand : AppCommand<PeerClient>
             return ValidationResult.Success();
         });
 
-        var filePath = AnsiConsole.Prompt(prompt);
+        var filePath = await AnsiConsole.PromptAsync(prompt, cancellationToken);
 
         return new FileInfo(TrimPath(filePath));
     }

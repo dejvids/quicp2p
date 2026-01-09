@@ -12,7 +12,7 @@ public class ShowDataCommand : AppCommand<IEnumerable<MessageCommand>>
 
     public override string CommandName => "Data";
 
-    protected override ValueTask Execute(IEnumerable<MessageCommand> messages, CancellationToken cancellationToken)
+    protected override async ValueTask Execute(IEnumerable<MessageCommand> messages, CancellationToken cancellationToken)
     {
         if (!messages.Any())
         {
@@ -27,9 +27,8 @@ public class ShowDataCommand : AppCommand<IEnumerable<MessageCommand>>
                 AnsiConsole.WriteLine();
             }
         }
-        AnsiConsole.Prompt(new TextPrompt<string>("Ok").AllowEmpty());
-        AnsiConsole.Clear();
 
-        return ValueTask.CompletedTask;
+        await AnsiConsole.PromptAsync(new TextPrompt<string>("Ok").AllowEmpty(), cancellationToken);
+        AnsiConsole.Clear();
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace QuicPeer.Client.Exceptions;
 
-internal class PeerClientException : Exception
+public class PeerClientException : Exception
 {
     public PeerClientException()
         : base()

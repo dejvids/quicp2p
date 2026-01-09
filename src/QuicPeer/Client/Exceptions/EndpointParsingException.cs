@@ -1,6 +1,6 @@
 ﻿namespace QuicPeer.Client.Exceptions;
 
-internal class EndpointParsingException : PeerClientException
+public class EndpointParsingException : PeerClientException
 {
     public EndpointParsingException()
     {
