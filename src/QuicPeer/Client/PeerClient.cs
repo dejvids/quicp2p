@@ -6,10 +6,12 @@ using QuicPeer.Options;
 
 namespace QuicPeer.Client;
 
-public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOptions> options, IPEndPoint remoteEndpoint) 
-    : ClientBase(logger, options), IAsyncDisposable
+public sealed class PeerClient(IOptions<ClientOptions> options, IPEndPoint remoteEndpoint)
+    : ClientBase(options), IAsyncDisposable
 {
     private CancellationTokenSource _cts = new();
+
+    public EndPoint? RemoteEndpoint { get; private set; } 
 
     private QuicConnection? _connection;
     protected override async Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct)
@@ -18,18 +20,10 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
         options.RemoteEndPoint = remoteEndpoint;
         options.ClientAuthenticationOptions.TargetHost = remoteEndpoint.Address.ToString();
 
-        try
-        {
-            var connection = await QuicConnection.ConnectAsync(options, ct);
-            _connection = connection;
-            
-            Logger.LogInformation("Connected to {Endpoint}", remoteEndpoint);
-        }
-        catch (QuicException ex)
-        {
-            Logger.LogError(ex,"Failed to connect to {Endpoint}", remoteEndpoint);
-            throw;
-        }
+        var connection = await QuicConnection.ConnectAsync(options, ct);
+        _connection = connection;
+        RemoteEndpoint = connection.RemoteEndPoint;
+
     }
 
     public async Task SendAsync(string message)
@@ -45,7 +39,6 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
         await textStream.WriteAsync(payload);
         await textStream.FlushAsync(_cts.Token);
         textStream.CompleteWrites();
-        textStream.Close();
     }
 
     public async Task SendAsync(FileInfo file)
@@ -54,7 +47,7 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
         {
             return;
         }
-        
+
         var dataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, _cts.Token);
         using var fileStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
 
@@ -64,20 +57,15 @@ public sealed class PeerClient(ILogger<PeerClient> logger, IOptions<ClientOption
 
             dataStream.CompleteWrites();
         }
-        catch (OperationCanceledException)
-        {
-            
-        }
         finally
         {
-            dataStream.Dispose();
+            await dataStream.DisposeAsync();
         }
     }
 
     public async Task DisconnectAsync()
     {
         await _cts.CancelAsync();
-        Logger.LogInformation("Peer disconnected.");
     }
 
     public async ValueTask DisposeAsync()

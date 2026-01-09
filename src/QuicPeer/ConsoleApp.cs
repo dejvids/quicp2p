@@ -1,7 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
 using QuicPeer.AppCommands;
-using QuicPeer.Client;
 using QuicPeer.Server.Commands;
 using Spectre.Console;
 
@@ -18,12 +17,13 @@ public class ConsoleApp : IHostedService
 
     public ConsoleApp(ILogger<ConsoleApp> logger,
         IMessageQueue<IServerCommand> serverMessageQueue,
-        PeerConnector peerConnector)
+        ConnectCommand connectCommand,
+        ShowDataCommand showDataCommand)
     {
         _logger = logger;
         _serverMessageQueue = serverMessageQueue;
 
-        AppCommand[] commands = [new ConnectCommand(peerConnector), new ShowDataCommand()];
+        AppCommand[] commands = [connectCommand, showDataCommand];
 
         _appCommands = commands.ToDictionary(c => c.CommandName);
 
@@ -69,7 +69,7 @@ public class ConsoleApp : IHostedService
 
             var appCommand = _appCommands[userCommand];
 
-            if(appCommand is ShowDataCommand dataCommand)
+            if (appCommand is ShowDataCommand dataCommand)
             {
                 await dataCommand.Start(_messages, cancellationToken);
                 continue;
@@ -101,7 +101,7 @@ public class ConsoleApp : IHostedService
                 _messages.Enqueue(message);
             }
         }
-        catch(OperationCanceledException)
+        catch (OperationCanceledException)
         {
             return;
         }

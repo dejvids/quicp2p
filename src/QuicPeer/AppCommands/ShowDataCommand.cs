@@ -4,8 +4,12 @@ using Spectre.Console;
 
 namespace QuicPeer.AppCommands;
 
-internal class ShowDataCommand : AppCommand<IEnumerable<MessageCommand>>
+public class ShowDataCommand : AppCommand<IEnumerable<MessageCommand>>
 {
+    public ShowDataCommand(ILogger<ShowDataCommand> logger) : base(logger)
+    {
+    }
+
     public override string CommandName => "Data";
 
     protected override ValueTask Execute(IEnumerable<MessageCommand> messages, CancellationToken cancellationToken)

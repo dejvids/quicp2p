@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using QuicPeer.Client.Exceptions;
 
 namespace QuicPeer.Client;
 
@@ -8,7 +9,7 @@ namespace QuicPeer.Client;
 /// <remarks>This class supports parsing both IP address endpoints and DNS hostnames with optional port numbers.
 /// It is intended for scenarios where endpoint information is provided as a string, such as configuration files or user
 /// input. The class is static and cannot be instantiated.</remarks>
-/// <exception cref="ArgumentException">Thrown when the endpoint string cannot be parsed into a valid <see cref="IPEndPoint"/>.</exception>"
+/// <exception cref="EndpointParsingException">Thrown when the endpoint string cannot be parsed into a valid <see cref="IPEndPoint"/>.</exception>"
 public static class EndpointParser
 {
     public static IPEndPoint Parse(string endpointString, int defaultPort)
@@ -17,7 +18,7 @@ public static class EndpointParser
         {
             if (string.IsNullOrWhiteSpace(endpointString))
             {
-                throw new ArgumentException("Remote endpoint cannot be null or empty");
+                throw new EndpointParsingException("Remote endpoint cannot be null or empty");
             }
 
             if (IPEndPoint.TryParse(endpointString, out var ipEndpoint))
@@ -31,7 +32,7 @@ public static class EndpointParser
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Given endpoint is neither IP or host name", ex);
+            throw new EndpointParsingException("Given endpoint is neither IP or host name", ex);
         }
     }
 
@@ -44,7 +45,7 @@ public static class EndpointParser
         var iPAddresses = Dns.GetHostAddresses(host);
         if (iPAddresses.Length == 0)
         {
-            throw new ArgumentException($"Could not resolve DNS for host: {host}");
+            throw new EndpointParsingException($"Could not resolve DNS for host: {host}");
         }
 
         return new IPEndPoint(iPAddresses.Last(), port);

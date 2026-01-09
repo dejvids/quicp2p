@@ -6,9 +6,8 @@ using QuicPeer.Options;
 
 namespace QuicPeer.Client;
 
-public abstract class ClientBase(ILogger logger, IOptions<ClientOptions> options)
+public abstract class ClientBase(IOptions<ClientOptions> options)
 {
-    protected ILogger Logger { get; } = logger;
     protected ClientOptions Options => options.Value;
     protected abstract Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct);
     public async Task RunClientAsync(CancellationToken ct)

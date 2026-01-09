@@ -3,8 +3,12 @@ using Spectre.Console;
 
 namespace QuicPeer.AppCommands;
 
-internal class SendFileCommand : AppCommand<PeerClient>
+public class SendFileCommand : AppCommand<PeerClient>
 {
+    public SendFileCommand(ILogger<SendFileCommand> logger) : base(logger)
+    {
+    }
+
     public override string CommandName => "Send file";
     protected override async ValueTask Execute(PeerClient peerClient, CancellationToken cancellationToken)
     {
@@ -20,15 +24,15 @@ internal class SendFileCommand : AppCommand<PeerClient>
             AnsiConsole.MarkupLine("[green]:check_mark: File sent successfully. [/]");
 
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             AnsiConsole.MarkupLine("[red]Couldn't send file[/]");
-            throw;
+            Logger.LogError(ex, "Couldn't send file");
         }
 
         finally
         {
-            AnsiConsole.Prompt(new TextPrompt<string>("Continue").AllowEmpty());
+            await AnsiConsole.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty());
             AnsiConsole.Clear();
         }
     }

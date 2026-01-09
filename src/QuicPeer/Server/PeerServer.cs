@@ -96,7 +96,7 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
         }
     }
 
-    private async Task ReadToFile(QuicStream stream)
+    private static async Task ReadToFile(QuicStream stream)
     {
         try
         {
@@ -107,7 +107,7 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
         }
         finally
         {
-            stream.Dispose();
+            await stream.DisposeAsync();
         }
     }
 

@@ -3,8 +3,12 @@ using Spectre.Console;
 
 namespace QuicPeer.AppCommands;
 
-internal class SendCommand : AppCommand<PeerClient>
+public class SendCommand : AppCommand<PeerClient>
 {
+    public SendCommand(ILogger<SendCommand> logger) : base(logger)
+    {
+    }
+
     public override string CommandName => "Send";
 
     protected override async ValueTask Execute(PeerClient peerClient, CancellationToken cancellationToken)
@@ -20,12 +24,14 @@ internal class SendCommand : AppCommand<PeerClient>
         {
             await peerClient.SendAsync(message);
             AnsiConsole.MarkupLine("[green4]Message sent.[/]");
-            AnsiConsole.Prompt(new TextPrompt<string>("Continue").AllowEmpty());
+            await AnsiConsole.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty());
             AnsiConsole.Clear();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             AnsiConsole.MarkupLine("[red3]Failed to send message[/]");
+
+            Logger.LogError(ex, "Couldn't send message.");
         }
 
     }
