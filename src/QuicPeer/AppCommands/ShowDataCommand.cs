@@ -6,29 +6,29 @@ namespace QuicPeer.AppCommands;
 
 public class ShowDataCommand : AppCommand<IEnumerable<MessageCommand>>
 {
-    public ShowDataCommand(ILogger<ShowDataCommand> logger) : base(logger)
+    public ShowDataCommand(ILogger<ShowDataCommand> logger, IAnsiConsole console) : base(logger, console)
     {
     }
 
     public override string CommandName => "Data";
 
-    protected override async ValueTask Execute(IEnumerable<MessageCommand> messages, CancellationToken cancellationToken)
+    public override async ValueTask Execute(IEnumerable<MessageCommand> messages, CancellationToken cancellationToken)
     {
         if (!messages.Any())
         {
-            AnsiConsole.WriteLine("Empty");
+            Console.WriteLine("Empty");
         }
         else
         {
             foreach (var message in messages)
             {
-                AnsiConsole.MarkupLine("Message at [yellow]{0}[/] from: [yellow]{1}[/]", message.Time.ToString("HH:mm:ss"), message.From);
-                AnsiConsole.MarkupLine("\t [blue]{0}[/]", message.Message);
-                AnsiConsole.WriteLine();
+                Console.MarkupLine("Message at [yellow]{0}[/] from: [yellow]{1}[/]", message.Time.ToString("HH:mm:ss"), message.From);
+                Console.MarkupLine("\t [blue]{0}[/]", message.Message);
+                Console.WriteLine();
             }
         }
 
-        await AnsiConsole.PromptAsync(new TextPrompt<string>("Ok").AllowEmpty(), cancellationToken);
-        AnsiConsole.Clear();
+        await Console.PromptAsync(new TextPrompt<string>("Ok").AllowEmpty(), cancellationToken);
+        Console.Clear();
     }
 }

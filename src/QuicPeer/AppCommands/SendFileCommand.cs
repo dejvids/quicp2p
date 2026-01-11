@@ -1,43 +1,42 @@
 ﻿using QuicPeer.Client;
 using Spectre.Console;
-
 namespace QuicPeer.AppCommands;
 
-public class SendFileCommand : AppCommand<PeerClient>
+public class SendFileCommand : AppCommand<IPeerClient>
 {
-    public SendFileCommand(ILogger<SendFileCommand> logger) : base(logger)
+    public SendFileCommand(ILogger<SendFileCommand> logger, IAnsiConsole console) : base(logger, console)
     {
     }
 
     public override string CommandName => "Send file";
-    protected override async ValueTask Execute(PeerClient peerClient, CancellationToken cancellationToken)
+    public override async ValueTask Execute(IPeerClient peerClient, CancellationToken cancellationToken)
     {
-        AnsiConsole.Clear();
+        Console.Clear();
 
         try
         {
             var fileToSend = await GetFileAsync(cancellationToken);
-            await AnsiConsole.Status()
+            await Console.Status()
                 .Spinner(Spinner.Known.Line)
-                .StartAsync("Sending...", async ctx => await peerClient.SendAsync(fileToSend));
+                .StartAsync("Sending...", async ctx => await peerClient.SendFileAsync(fileToSend));
 
-            AnsiConsole.MarkupLine("[green]:check_mark: File sent successfully. [/]");
+            Console.MarkupLine("[green]:check_mark: File sent successfully. [/]");
 
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine("[red]Couldn't send file[/]");
+            Console.MarkupLine("[red]Couldn't send file[/]");
             Logger.LogError(ex, "Couldn't send file");
         }
 
         finally
         {
-            await AnsiConsole.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty(), cancellationToken);
-            AnsiConsole.Clear();
+            await Console.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty(), cancellationToken);
+            Console.Clear();
         }
     }
 
-    private static async Task<FileInfo> GetFileAsync(CancellationToken cancellationToken)
+    private async Task<FileInfo> GetFileAsync(CancellationToken cancellationToken)
     {
         var prompt = new TextPrompt<string>("Select path")
             .Validate(path =>
@@ -55,7 +54,7 @@ public class SendFileCommand : AppCommand<PeerClient>
             return ValidationResult.Success();
         });
 
-        var filePath = await AnsiConsole.PromptAsync(prompt, cancellationToken);
+        var filePath = await Console.PromptAsync(prompt, cancellationToken);
 
         return new FileInfo(TrimPath(filePath));
     }

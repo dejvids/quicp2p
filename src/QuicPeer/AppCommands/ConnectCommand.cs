@@ -15,57 +15,58 @@ public class ConnectCommand : AppCommand
     protected SendFileCommand SendFileCommand { get; }
 
     public ConnectCommand(ILogger<ConnectCommand> logger,
+                          IAnsiConsole console,
                           PeerConnector peerConnector,
                           SendCommand sendCommand,
-                          SendFileCommand sendFileCommand) : base(logger)
+                          SendFileCommand sendFileCommand) : base(logger, console)
     {
         _peerConnector = peerConnector;
         SendCommand = sendCommand;
         SendFileCommand = sendFileCommand;
     }
 
-    protected override async ValueTask Execute(CancellationToken cancellationToken)
+    public override async ValueTask Execute(CancellationToken cancellationToken)
     {
-        PeerClient? peerClient = await SetupConnection(cancellationToken);
+        IPeerClient? peerClient = await SetupConnection(cancellationToken);
 
         if (peerClient is null)
         {
             return;
         }
 
-        AnsiConsole.MarkupLine("[green]:check_mark: Connected to [/] {0} ", peerClient.RemoteEndpoint!);
+        Console.MarkupLine("[green]:check_mark: Connected to [/] {0} ", peerClient.RemoteEndpoint!);
         await KeepConnection(peerClient, cancellationToken);
     }
 
-    private async Task KeepConnection(PeerClient? peerClient, CancellationToken cancellationToken)
+    private async Task KeepConnection(IPeerClient? peerClient, CancellationToken cancellationToken)
     {
         while (peerClient is not null && !cancellationToken.IsCancellationRequested)
         {
-            var clientCommand = await AnsiConsole.PromptAsync(new SelectionPrompt<string>()
+            var clientCommand = await Console.PromptAsync(new SelectionPrompt<string>()
                 .AddChoices(SendCommand.CommandName, SendFileCommand.CommandName, DisconnectCommand), cancellationToken);
 
             if (clientCommand.Equals(DisconnectCommand, StringComparison.OrdinalIgnoreCase))
             {
-                if (!AnsiConsole.Confirm("Are you sure?"))
+                if (!Console.Confirm("Are you sure?"))
                 {
-                    AnsiConsole.Clear();
+                    Console.Clear();
                     continue;
                 }
 
                 await peerClient.DisconnectAsync();
-                AnsiConsole.Clear();
+                Console.Clear();
                 break;
             }
 
             if (clientCommand.Equals(SendCommand.CommandName))
             {
-                await SendCommand.Start(peerClient, cancellationToken);
+                await SendCommand.Execute(peerClient, cancellationToken);
                 continue;
             }
 
             if (clientCommand.Equals(SendFileCommand.CommandName))
             {
-                await SendFileCommand.Start(peerClient, cancellationToken);
+                await SendFileCommand.Execute(peerClient, cancellationToken);
                 continue;
             }
 
@@ -76,24 +77,24 @@ public class ConnectCommand : AppCommand
     {
         while (true)
         {
-            var endpoint = await AnsiConsole.AskAsync<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):", cancellationToken);
+            var endpoint = await Console.AskAsync<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):", cancellationToken);
 
-            var peerClient = await AnsiConsole.Status()
+            var peerClient = await Console.Status()
                 .Spinner(Spinner.Known.Line)
                 .StartAsync("Conecting...", async ctx => await Connect(endpoint, cancellationToken));
 
             if (peerClient is null)
             {
-                if (await AnsiConsole.ConfirmAsync("Retry?", true, cancellationToken))
+                if (await Console.ConfirmAsync("Retry?", true, cancellationToken))
                 {
                     continue;
                 }
 
-                AnsiConsole.Clear();
+                Console.Clear();
                 return null;
             }
 
-            AnsiConsole.Clear();
+            Console.Clear();
             return peerClient;
         }
     }
@@ -107,14 +108,14 @@ public class ConnectCommand : AppCommand
         }
         catch (EndpointParsingException)
         {
-            AnsiConsole.MarkupLine("[red]Invalid endpoint format.[/] Please use IP:Port or Hostname:Port.");
+            Console.MarkupLine("[red]Invalid endpoint format.[/] Please use IP:Port or Hostname:Port.");
             return null;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Connection failed");
 
-            AnsiConsole.MarkupLine("[red]Couldn't connect to[/] [yellow]{0}[/]", endpoint);
+            Console.MarkupLine("[red]Couldn't connect to[/] [yellow]{0}[/]", endpoint);
             return null;
         }
     }

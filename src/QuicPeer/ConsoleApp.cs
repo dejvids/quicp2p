@@ -11,16 +11,18 @@ public class ConsoleApp : IHostedService
     private const string ExitCommand = "Exit";
     private readonly IMessageQueue<IServerCommand> _serverMessageQueue;
     private readonly ILogger _logger;
-
+    private readonly IAnsiConsole _console;
     private readonly Dictionary<string, AppCommand> _appCommands;
     private readonly ConcurrentQueue<MessageCommand> _messages = new();
 
     public ConsoleApp(ILogger<ConsoleApp> logger,
+        IAnsiConsole console,
         IMessageQueue<IServerCommand> serverMessageQueue,
         ConnectCommand connectCommand,
         ShowDataCommand showDataCommand)
     {
         _logger = logger;
+        _console = console;
         _serverMessageQueue = serverMessageQueue;
 
         AppCommand[] commands = [connectCommand, showDataCommand];
@@ -47,7 +49,7 @@ public class ConsoleApp : IHostedService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine("Console app has been stopped due to unexpected error.");
+            _console.MarkupLine("Console app has been stopped due to unexpected error.");
             _logger.LogCritical(ex, "Critical error in console app.");
         }
     }
@@ -56,11 +58,11 @@ public class ConsoleApp : IHostedService
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var userCommand = AnsiConsole.Prompt(mainMenu);
+            var userCommand = _console.Prompt(mainMenu);
 
             if (userCommand.Equals(ExitCommand, StringComparison.OrdinalIgnoreCase))
             {
-                if (AnsiConsole.Confirm("Do you want to close the app?"))
+                if (_console.Confirm("Do you want to close the app?"))
                 {
                     await StopAsync(cancellationToken);
                     break;
@@ -71,17 +73,17 @@ public class ConsoleApp : IHostedService
 
             if (appCommand is ShowDataCommand dataCommand)
             {
-                await dataCommand.Start(_messages, cancellationToken);
+                await dataCommand.Execute(_messages, cancellationToken);
                 continue;
             }
 
-            await appCommand.Start(cancellationToken);
+            await appCommand.Execute(cancellationToken);
         }
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        AnsiConsole.MarkupLine("Shutting down:");
+        _console.MarkupLine("Shutting down:");
         _logger.LogInformation("App stopped.");
         return Task.CompletedTask;
     }

@@ -7,7 +7,7 @@ using QuicPeer.Options;
 namespace QuicPeer.Client;
 
 public sealed class PeerClient(IOptions<ClientOptions> options, IPEndPoint remoteEndpoint)
-    : ClientBase(options), IAsyncDisposable
+    : ClientBase(options), IPeerClient
 {
     private CancellationTokenSource _cts = new();
 
@@ -41,7 +41,7 @@ public sealed class PeerClient(IOptions<ClientOptions> options, IPEndPoint remot
         textStream.CompleteWrites();
     }
 
-    public async Task SendAsync(FileInfo file)
+    public async Task SendFileAsync(FileInfo file)
     {
         if (_connection is null || !File.Exists(file.FullName))
         {
