@@ -42,9 +42,10 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"dejvids_quicp2p" \
-           /o:"dawidsurys" \
-           /d:sonar.token="$env:SONAR_TOKEN" \
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin `
+           /k:"dejvids_quicp2p" `
+           /o:"dawidsurys" `
+           /d:sonar.token="$env:SONAR_TOKEN" `
            /d:sonar.cs.opencover.reportsPaths="**/*.opencover.xml"
       - name: Build
         run: |    
