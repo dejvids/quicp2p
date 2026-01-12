@@ -12,17 +12,19 @@ public class ConsoleApp : IHostedService
     private readonly IMessageQueue<IServerCommand> _serverMessageQueue;
     private readonly ILogger _logger;
     private readonly IAnsiConsole _console;
+    private readonly IConsoleAccessor _consoleAccessor;
     private readonly Dictionary<string, AppCommand> _appCommands;
     private readonly ConcurrentQueue<MessageCommand> _messages = new();
 
     public ConsoleApp(ILogger<ConsoleApp> logger,
-        IAnsiConsole console,
+       IConsoleAccessor consoleAccessor,
         IMessageQueue<IServerCommand> serverMessageQueue,
         ConnectCommand connectCommand,
         ShowDataCommand showDataCommand)
     {
         _logger = logger;
-        _console = console;
+        _consoleAccessor = consoleAccessor;
+        _console = consoleAccessor.Console;
         _serverMessageQueue = serverMessageQueue;
 
         AppCommand[] commands = [connectCommand, showDataCommand];
@@ -37,10 +39,12 @@ public class ConsoleApp : IHostedService
     {
         _logger.LogInformation("Console app started.");
 
-        var mainMenu = new SelectionPrompt<string>()
-            .AddChoices(_appCommands.Values.Select(c => c.CommandName))
-            .AddChoices(ExitCommand);
+        var menuOptions = new List<string>(_appCommands.Values.Select(c => c.CommandName))
+        {
+            ExitCommand
+        };
 
+        var mainMenu = _consoleAccessor.SelectionPrompt(menuOptions);
         _ = Task.Factory.StartNew(async () => await ReadServerCommands(cancellationToken), TaskCreationOptions.LongRunning);
 
         try
@@ -54,11 +58,11 @@ public class ConsoleApp : IHostedService
         }
     }
 
-    private async Task ShowMenu(SelectionPrompt<string> mainMenu, CancellationToken cancellationToken)
+    private async Task ShowMenu(IPrompt<string> mainMenu, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var userCommand = _console.Prompt(mainMenu);
+            var userCommand = await mainMenu.ShowAsync(_console, CancellationToken.None);
 
             if (userCommand.Equals(ExitCommand, StringComparison.OrdinalIgnoreCase))
             {
@@ -67,9 +71,14 @@ public class ConsoleApp : IHostedService
                     await StopAsync(cancellationToken);
                     break;
                 }
+
+                continue;
             }
 
-            var appCommand = _appCommands[userCommand];
+            if(!_appCommands.TryGetValue(userCommand, out var appCommand))
+            {
+                continue;
+            }
 
             if (appCommand is ShowDataCommand dataCommand)
             {

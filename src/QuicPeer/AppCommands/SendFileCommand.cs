@@ -4,7 +4,7 @@ namespace QuicPeer.AppCommands;
 
 public class SendFileCommand : AppCommand<IPeerClient>
 {
-    public SendFileCommand(ILogger<SendFileCommand> logger, IAnsiConsole console) : base(logger, console)
+    public SendFileCommand(ILogger<SendFileCommand> logger, IConsoleAccessor consoleAccessor) : base(logger, consoleAccessor)
     {
     }
 

@@ -1,13 +1,9 @@
-﻿using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NSubstitute;
 using QuicPeer.AppCommands;
 using QuicPeer.Client;
 using Spectre.Console;
 
-[assembly: SupportedOSPlatform("windows")]
-[assembly: SupportedOSPlatform("linux")]
-[assembly: SupportedOSPlatform("macos")]
 namespace QuicPeer.Tests.AppCommands;
 
 public class SendFileCommandTests

@@ -14,15 +14,19 @@ public class ConnectCommand : AppCommand
     protected SendCommand SendCommand { get; }
     protected SendFileCommand SendFileCommand { get; }
 
+    private readonly List<string> _subMenuOptions;
+
     public ConnectCommand(ILogger<ConnectCommand> logger,
-                          IAnsiConsole console,
+                          IConsoleAccessor consoleAccessor,
                           PeerConnector peerConnector,
                           SendCommand sendCommand,
-                          SendFileCommand sendFileCommand) : base(logger, console)
+                          SendFileCommand sendFileCommand) : base(logger, consoleAccessor)
     {
         _peerConnector = peerConnector;
         SendCommand = sendCommand;
         SendFileCommand = sendFileCommand;
+
+        _subMenuOptions = [SendCommand.CommandName, SendFileCommand.CommandName, DisconnectCommand];
     }
 
     public override async ValueTask Execute(CancellationToken cancellationToken)
@@ -40,10 +44,10 @@ public class ConnectCommand : AppCommand
 
     private async Task KeepConnection(IPeerClient? peerClient, CancellationToken cancellationToken)
     {
+        var subMenu = ConsoleAccessor.SelectionPrompt(_subMenuOptions);
         while (peerClient is not null && !cancellationToken.IsCancellationRequested)
         {
-            var clientCommand = await Console.PromptAsync(new SelectionPrompt<string>()
-                .AddChoices(SendCommand.CommandName, SendFileCommand.CommandName, DisconnectCommand), cancellationToken);
+            var clientCommand = await Console.PromptAsync(subMenu, cancellationToken);
 
             if (clientCommand.Equals(DisconnectCommand, StringComparison.OrdinalIgnoreCase))
             {

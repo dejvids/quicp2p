@@ -6,7 +6,6 @@ using QuicPeer.Logging;
 using QuicPeer.Options;
 using QuicPeer.Server;
 using QuicPeer.Server.Commands;
-using Spectre.Console;
 using System.Runtime.Versioning;
 
 [assembly: SupportedOSPlatform("windows")]
@@ -20,7 +19,7 @@ builder.Services.AddHostedService<ConsoleApp>();
 builder.Services.AddScoped<PeerConnector>();
 builder.Services.AddScoped<IPeerClientFactory, PeerClientFactory>();
 builder.Services.AddAppCommands();
-builder.Services.AddSingleton(AnsiConsole.Console);
+builder.Services.AddScoped<IConsoleAccessor, ConsoleAccessor>();
 
 builder.Services.AddOptionsWithValidateOnStart<CertificateOptions>()
     .Bind(builder.Configuration.GetSection(CertificateOptions.SectionName));

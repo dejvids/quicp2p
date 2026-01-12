@@ -7,12 +7,13 @@ public abstract class AppCommand
     public abstract string CommandName { get; }
 
     protected ILogger Logger { get; }
-    public IAnsiConsole Console { get; }
+    protected IConsoleAccessor ConsoleAccessor { get; }
+    protected IAnsiConsole Console => ConsoleAccessor.Console;
 
-    protected AppCommand(ILogger logger, IAnsiConsole console)
+    protected AppCommand(ILogger logger, IConsoleAccessor consoleAccessor)
     {
         Logger = logger;
-        Console = console;
+        ConsoleAccessor = consoleAccessor;
     }
 
     public abstract ValueTask Execute(CancellationToken cancellationToken);
@@ -20,8 +21,8 @@ public abstract class AppCommand
 
 public abstract class AppCommand<T> : AppCommand
 {
-    protected AppCommand(ILogger logger, IAnsiConsole console) 
-        : base(logger, console)
+    protected AppCommand(ILogger logger, IConsoleAccessor consoleAccessor) 
+        : base(logger, consoleAccessor)
     {
     }
 

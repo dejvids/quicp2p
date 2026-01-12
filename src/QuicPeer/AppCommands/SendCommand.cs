@@ -5,7 +5,7 @@ namespace QuicPeer.AppCommands;
 
 public class SendCommand : AppCommand<IPeerClient>
 {
-    public SendCommand(ILogger<SendCommand> logger, IAnsiConsole console) : base(logger, console)
+    public SendCommand(ILogger<SendCommand> logger, IConsoleAccessor consoleAccessor) : base(logger, consoleAccessor)
     {
     }
 

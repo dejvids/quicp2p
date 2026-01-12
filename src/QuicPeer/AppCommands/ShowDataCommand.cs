@@ -6,7 +6,7 @@ namespace QuicPeer.AppCommands;
 
 public class ShowDataCommand : AppCommand<IEnumerable<MessageCommand>>
 {
-    public ShowDataCommand(ILogger<ShowDataCommand> logger, IAnsiConsole console) : base(logger, console)
+    public ShowDataCommand(ILogger<ShowDataCommand> logger, IConsoleAccessor consoleAccessor) : base(logger, consoleAccessor)
     {
     }
 
