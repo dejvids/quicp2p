@@ -11,8 +11,8 @@ public class SendFileCommandTests
     [Fact]
     public async Task should_exit_if_file_does_not_exist()
     {
-        var console = Substitute.For<IAnsiConsole>();
-        var sendFileCommand = new SendFileCommand(Substitute.For<ILogger<SendFileCommand>>(), console);
+        var consoleAccessor = Substitute.For<IConsoleAccessor>();
+        var sendFileCommand = new SendFileCommand(Substitute.For<ILogger<SendFileCommand>>(), consoleAccessor);
         var peerClient = Substitute.For<IPeerClient>();
 
         _ = Record.ExceptionAsync(() => sendFileCommand.Execute(peerClient, CancellationToken.None).AsTask());
