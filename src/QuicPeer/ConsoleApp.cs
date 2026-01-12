@@ -31,8 +31,8 @@ public class ConsoleApp : IHostedService
 
         _appCommands = commands.ToDictionary(c => c.CommandName);
 
-        Console.OutputEncoding = Encoding.UTF8;
-        Console.InputEncoding = Encoding.UTF8;
+        System.Console.OutputEncoding = Encoding.UTF8;
+        System.Console.InputEncoding = Encoding.UTF8;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -66,7 +66,7 @@ public class ConsoleApp : IHostedService
 
             if (userCommand.Equals(ExitCommand, StringComparison.OrdinalIgnoreCase))
             {
-                if (_console.Confirm("Do you want to close the app?"))
+                if (await _consoleAccessor.ConfirmAsync("Do you want to close the app?", true, cancellationToken))
                 {
                     await StopAsync(cancellationToken);
                     break;

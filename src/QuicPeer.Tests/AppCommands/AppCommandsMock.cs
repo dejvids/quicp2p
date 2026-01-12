@@ -6,8 +6,23 @@ namespace QuicPeer.Tests.AppCommands;
 
 public static class AppCommandsMock
 {
-    public static ConnectCommand ConnectCommand { get; } = new ConnectCommandMock();
-    public static ShowDataCommand ShowDataCommand { get; } = new ShowDataCommandMock();
+    private static readonly ConnectCommand _connecCommand;
+    private static readonly ShowDataCommand _showDataCommand;
+
+    public static ConnectCommand ConnectCommand { get; }
+    public static ShowDataCommand ShowDataCommand { get; }
+
+    static AppCommandsMock()
+    {
+        ConnectCommand = Substitute.For<ConnectCommandMock>();
+        ShowDataCommand = Substitute.For<ShowDataCommandMock>();
+
+        _connecCommand = new ConnectCommandMock();
+        _showDataCommand = new ShowDataCommandMock();
+
+        ConnectCommand.CommandName.Returns(_connecCommand.CommandName);
+        ShowDataCommand.CommandName.Returns(_showDataCommand.CommandName);
+    }
 
     public class ConnectCommandMock : ConnectCommand
     {
