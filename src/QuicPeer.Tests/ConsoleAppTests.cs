@@ -7,7 +7,7 @@ using static QuicPeer.Tests.AppCommands.AppCommandsMock;
 
 namespace QuicPeer.Tests;
 
-public class ConsoleAppTests
+public sealed class ConsoleAppTests : IDisposable
 {
     private readonly IConsoleAccessor _consoleAccessor = Substitute.For<IConsoleAccessor>();
     private readonly IPrompt<string> _menuPrompt;
@@ -19,7 +19,7 @@ public class ConsoleAppTests
         _consoleAccessor.Console.Returns(console);
         _menuPrompt = Substitute.For<IPrompt<string>>();
 
-        _consoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>()).ReturnsForAnyArgs(c => _menuPrompt);
+        _consoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>()).ReturnsForAnyArgs(_menuPrompt);
     }
     [Fact]
     public async Task should_set_console_encoding_to_utf8()
@@ -45,7 +45,9 @@ public class ConsoleAppTests
 
         await consoleApp.StartAsync(_cts.Token);
 
-        _consoleAccessor.Received(1).SelectionPrompt(Arg.Is<IEnumerable<string>>(o => o.Contains("Connect") && o.Contains("Data") && o.Contains("Exit")));
+        _consoleAccessor.Received(1).SelectionPrompt(
+            Arg.Is<IList<string>>(o => 
+                o.Contains("Connect") && o.Contains("Data") && o.Contains("Exit")));
         await _menuPrompt.Received().ShowAsync(_consoleAccessor.Console, Arg.Any<CancellationToken>());
     }
 
@@ -54,7 +56,7 @@ public class ConsoleAppTests
     {
         var serverMessageQueue = Substitute.For<IMessageQueue<IServerCommand>>();
         var receivedMessages = 0;
-        serverMessageQueue.DequeueAllAsync(Arg.Any<CancellationToken>()).ReturnsForAnyArgs(c =>
+        serverMessageQueue.DequeueAllAsync(Arg.Any<CancellationToken>()).ReturnsForAnyArgs(_ =>
         {
             return AsyncEnumerable.Range(1, 2).Select(i => 
             {
@@ -123,6 +125,10 @@ public class ConsoleAppTests
     }
 
 
+    public void Dispose()
+    {
+        _cts.Dispose();
+    }
 }
 
 

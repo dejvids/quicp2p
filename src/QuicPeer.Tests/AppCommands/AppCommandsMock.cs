@@ -6,28 +6,44 @@ namespace QuicPeer.Tests.AppCommands;
 
 public static class AppCommandsMock
 {
-    private static readonly ConnectCommand _connecCommand;
-    private static readonly ShowDataCommand _showDataCommand;
-
     public static ConnectCommand ConnectCommand { get; }
     public static ShowDataCommand ShowDataCommand { get; }
 
     static AppCommandsMock()
     {
+        var connectCommand = new ConnectCommandMock();
+        var showDataCommand = new ShowDataCommandMock();
+
         ConnectCommand = Substitute.For<ConnectCommandMock>();
         ShowDataCommand = Substitute.For<ShowDataCommandMock>();
-
-        _connecCommand = new ConnectCommandMock();
-        _showDataCommand = new ShowDataCommandMock();
-
-        ConnectCommand.CommandName.Returns(_connecCommand.CommandName);
-        ShowDataCommand.CommandName.Returns(_showDataCommand.CommandName);
+        
+        ConnectCommand.CommandName.Returns(connectCommand.CommandName);
+        ShowDataCommand.CommandName.Returns(showDataCommand.CommandName);
     }
 
     public class ConnectCommandMock : ConnectCommand
     {
+        public static SendCommand SendCommand { get; }
+        public static SendFileCommand SendFileCommand { get; }
+
+        static ConnectCommandMock()
+        {
+            var sendCommand = new SendCommandMock();
+            var sendFileCommand = new SendFileCommandMock();
+
+            SendCommand = Substitute.For<SendCommandMock>();
+            SendFileCommand = Substitute.For<SendFileCommandMock>();
+
+            SendCommand.CommandName.Returns(sendCommand.CommandName);
+            SendFileCommand.CommandName.Returns(sendFileCommand.CommandName);
+        }
+
         public ConnectCommandMock()
-            : base(Substitute.For<ILogger<ConnectCommand>>(), Substitute.For<IConsoleAccessor>(), null, new SendCommandMock(), new SendFileCommandMock())
+            : base(Substitute.For<ILogger<ConnectCommand>>(), 
+                Substitute.For<IConsoleAccessor>(), 
+                null!, 
+                new SendCommandMock(), 
+                new SendFileCommandMock())
         {
         }
 

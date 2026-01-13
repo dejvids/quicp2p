@@ -2,7 +2,6 @@
 using NSubstitute;
 using QuicPeer.AppCommands;
 using QuicPeer.Client;
-using Spectre.Console;
 
 namespace QuicPeer.Tests.AppCommands;
 

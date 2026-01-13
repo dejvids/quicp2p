@@ -1,7 +1,6 @@
 ﻿using QuicPeer.Client;
 using QuicPeer.Client.Exceptions;
 using Spectre.Console;
-using Spectre.Console.Extensions;
 
 namespace QuicPeer.AppCommands;
 
@@ -10,9 +9,9 @@ public class ConnectCommand : AppCommand
     private const string DisconnectCommand = "Disconnect";
     private readonly PeerConnector _peerConnector;
 
-    public override string CommandName { get; } = "Connect";
-    protected SendCommand SendCommand { get; }
-    protected SendFileCommand SendFileCommand { get; }
+    public override string CommandName => "Connect";
+    private SendCommand SendCommand { get; }
+    private SendFileCommand SendFileCommand { get; }
 
     private readonly List<string> _subMenuOptions;
 
@@ -31,8 +30,7 @@ public class ConnectCommand : AppCommand
 
     public override async ValueTask Execute(CancellationToken cancellationToken)
     {
-        IPeerClient? peerClient = await SetupConnection(cancellationToken);
-
+        var peerClient = await SetupConnection(cancellationToken);
         if (peerClient is null)
         {
             return;
@@ -42,16 +40,16 @@ public class ConnectCommand : AppCommand
         await KeepConnection(peerClient, cancellationToken);
     }
 
-    private async Task KeepConnection(IPeerClient? peerClient, CancellationToken cancellationToken)
+    private async Task KeepConnection(IPeerClient peerClient, CancellationToken cancellationToken)
     {
         var subMenu = ConsoleAccessor.SelectionPrompt(_subMenuOptions);
-        while (peerClient is not null && !cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
             var clientCommand = await Console.PromptAsync(subMenu, cancellationToken);
 
             if (clientCommand.Equals(DisconnectCommand, StringComparison.OrdinalIgnoreCase))
             {
-                if (!Console.Confirm("Are you sure?"))
+                if (! await ConsoleAccessor.ConfirmAsync("Are you sure?", true, cancellationToken))
                 {
                     Console.Clear();
                     continue;
@@ -71,25 +69,22 @@ public class ConnectCommand : AppCommand
             if (clientCommand.Equals(SendFileCommand.CommandName))
             {
                 await SendFileCommand.Execute(peerClient, cancellationToken);
-                continue;
             }
 
         }
     }
 
-    private async Task<PeerClient?> SetupConnection(CancellationToken cancellationToken)
+    private async Task<IPeerClient?> SetupConnection(CancellationToken cancellationToken)
     {
         while (true)
         {
-            var endpoint = await Console.AskAsync<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):", cancellationToken);
-
-            var peerClient = await Console.Status()
-                .Spinner(Spinner.Known.Line)
-                .StartAsync("Conecting...", async ctx => await Connect(endpoint, cancellationToken));
+            var textPrompt = ConsoleAccessor.TextPrompt<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):");
+            var endpoint = await Console.PromptAsync(textPrompt, cancellationToken);
+            var peerClient = await ConsoleAccessor.SpinnerAsync("Connecting...", Connect(endpoint, cancellationToken));
 
             if (peerClient is null)
             {
-                if (await Console.ConfirmAsync("Retry?", true, cancellationToken))
+                if (await ConsoleAccessor.ConfirmAsync("Retry?", true, cancellationToken))
                 {
                     continue;
                 }
@@ -103,7 +98,7 @@ public class ConnectCommand : AppCommand
         }
     }
 
-    private async Task<PeerClient?> Connect(string endpoint, CancellationToken cancellationToken)
+    private async Task<IPeerClient?> Connect(string endpoint, CancellationToken cancellationToken)
     {
         try
         {
