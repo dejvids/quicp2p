@@ -8,12 +8,10 @@ using static QuicPeer.Tests.AppCommands.AppCommandsMock;
 
 namespace QuicPeer.Tests.AppCommands;
 
-public sealed class ConnectCommandTests : IDisposable
+public sealed class ConnectCommandTests : AppCommandTestsBase
 {
-    private readonly CancellationTokenSource _cts = new (100);
     private readonly PeerConnector _peerConnector = Substitute.For<PeerConnector>(Substitute.For<IPeerClientFactory>());
     private readonly ILogger<ConnectCommand> _logger = Substitute.For<ILogger<ConnectCommand>>();
-    private readonly IConsoleAccessor _consoleAccessor = Substitute.For<IConsoleAccessor>();
 
     [Fact]
     public async Task should_exit_without_error_when_connection_fails()
@@ -22,10 +20,10 @@ public sealed class ConnectCommandTests : IDisposable
         var peerConnector = Substitute.For<PeerConnector>(Substitute.For<IPeerClientFactory>());
         peerConnector.Connect(Arg.Any<string>(), 
             Arg.Any<CancellationToken>()).ThrowsForAnyArgs(connectionException);
-        var command = new ConnectCommand(_logger, _consoleAccessor,
+        var command = new ConnectCommand(_logger, ConsoleAccessor,
             peerConnector, ConnectCommandMock.SendCommand, ConnectCommandMock.SendFileCommand);
         
-        await command.Execute(_cts.Token);
+        await command.Execute(CancellationToken);
 
         await peerConnector.Received(1).Connect(Arg.Any<string>(), Arg.Any<CancellationToken>());
 
@@ -38,14 +36,14 @@ public sealed class ConnectCommandTests : IDisposable
     {
         const string expectedEndpoint = "remote.point:501";
         var peerConnector = Substitute.For<PeerConnector>(Substitute.For<IPeerClientFactory>());
-        var command = new ConnectCommand(_logger, _consoleAccessor,
+        var command = new ConnectCommand(_logger, ConsoleAccessor,
             peerConnector, ConnectCommandMock.SendCommand, ConnectCommandMock.SendFileCommand);
 
         var textPrompt = Substitute.For<IPrompt<string>>();
         textPrompt.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs(expectedEndpoint);
-        _consoleAccessor.TextPrompt<string>(Arg.Any<string>()).Returns(textPrompt);
+        ConsoleAccessor.TextPrompt<string>(Arg.Any<string>()).Returns(textPrompt);
 
-        await command.Execute(_cts.Token);
+        await command.Execute(CancellationToken);
 
         await peerConnector.Received(1)
             .Connect(Arg.Is<string>(endpoint => endpoint == expectedEndpoint), Arg.Any<CancellationToken>());
@@ -57,16 +55,16 @@ public sealed class ConnectCommandTests : IDisposable
         var subMenu = Substitute.For<IPrompt<string>>();
         subMenu.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs("");
 
-        _consoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>()).ReturnsForAnyArgs(subMenu);
+        ConsoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>()).ReturnsForAnyArgs(subMenu);
 
         _peerConnector.Connect(Arg.Any<string>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs(Substitute.For<IPeerClient>());
 
-        var command = new ConnectCommand(_logger, _consoleAccessor,
+        var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector, 
                 ConnectCommandMock.SendCommand, 
                 ConnectCommandMock.SendFileCommand);
         
-        await command.Execute(_cts.Token);
+        await command.Execute(CancellationToken);
 
         await subMenu.Received()
             .ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>());
@@ -79,16 +77,16 @@ public sealed class ConnectCommandTests : IDisposable
         var subMenu = Substitute.For<IPrompt<string>>();
         subMenu.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs("Send");
 
-        _consoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>()).ReturnsForAnyArgs(subMenu);
+        ConsoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>()).ReturnsForAnyArgs(subMenu);
 
         _peerConnector.Connect(Arg.Any<string>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs(Substitute.For<IPeerClient>());
 
-        var command = new ConnectCommand(_logger, _consoleAccessor,
+        var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
                 ConnectCommandMock.SendCommand,
                 ConnectCommandMock.SendFileCommand);
         
-        await command.Execute(_cts.Token);
+        await command.Execute(CancellationToken);
 
         await ConnectCommandMock.SendCommand.Received().Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
     }
@@ -99,17 +97,17 @@ public sealed class ConnectCommandTests : IDisposable
         var subMenu = Substitute.For<IPrompt<string>>();
         subMenu.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs("Send file");
-        _consoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>())
+        ConsoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>())
             .ReturnsForAnyArgs(subMenu);
         _peerConnector.Connect(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(Substitute.For<IPeerClient>());
 
-        var command = new ConnectCommand(_logger, _consoleAccessor,
+        var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
                 ConnectCommandMock.SendCommand,
                 ConnectCommandMock.SendFileCommand);
         
-        await command.Execute(_cts.Token);
+        await command.Execute(CancellationToken);
 
         await ConnectCommandMock.SendFileCommand
             .Received().Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
@@ -123,11 +121,11 @@ public sealed class ConnectCommandTests : IDisposable
         var subMenu = Substitute.For<IPrompt<string>>();
         subMenu.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs("Disconnect");
-        _consoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>())
+        ConsoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>())
             .ReturnsForAnyArgs(subMenu);
-        _consoleAccessor.ConfirmAsync(Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        ConsoleAccessor.ConfirmAsync(Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(true);
-        _consoleAccessor.SpinnerAsync(Arg.Any<string>(), Arg.Any<Task<IPeerClient?>>(), Arg.Any<CancellationToken>())
+        ConsoleAccessor.SpinnerAsync(Arg.Any<string>(), Arg.Any<Task<IPeerClient?>>(), Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(c => c[1] as Task<IPeerClient?>);
         
         var peerClient = Substitute.For<IPeerClient>();
@@ -135,12 +133,12 @@ public sealed class ConnectCommandTests : IDisposable
         _peerConnector.Connect(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(peerClient);
 
-        var command = new ConnectCommand(_logger, _consoleAccessor,
+        var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
                 ConnectCommandMock.SendCommand,
                 ConnectCommandMock.SendFileCommand);
         
-        await command.Execute(_cts.Token);
+        await command.Execute(CancellationToken);
 
         await ConnectCommandMock.SendFileCommand
             .Received(0).Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
@@ -151,10 +149,5 @@ public sealed class ConnectCommandTests : IDisposable
             .Received(1).ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>());
        
         await peerClient.Received(1).DisconnectAsync();
-    }
-
-    public void Dispose()
-    {
-        _cts.Dispose();
     }
 }

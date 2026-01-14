@@ -18,7 +18,7 @@ public class SendFileCommand : AppCommand<IPeerClient>
             var fileToSend = await GetFileAsync(cancellationToken);
             await Console.Status()
                 .Spinner(Spinner.Known.Line)
-                .StartAsync("Sending...", async ctx => await peerClient.SendFileAsync(fileToSend));
+                .StartAsync("Sending...", async _ => await peerClient.SendFileAsync(fileToSend));
 
             Console.MarkupLine("[green]:check_mark: File sent successfully. [/]");
 

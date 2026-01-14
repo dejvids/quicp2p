@@ -5,7 +5,8 @@ namespace QuicPeer.AppCommands;
 
 public class SendCommand : AppCommand<IPeerClient>
 {
-    public SendCommand(ILogger<SendCommand> logger, IConsoleAccessor consoleAccessor) : base(logger, consoleAccessor)
+    public SendCommand(ILogger<SendCommand> logger, IConsoleAccessor consoleAccessor) 
+        : base(logger, consoleAccessor)
     {
     }
 
@@ -13,7 +14,8 @@ public class SendCommand : AppCommand<IPeerClient>
 
     public override async ValueTask Execute(IPeerClient peerClient, CancellationToken cancellationToken)
     {
-        var message = await Console.AskAsync<string>("Enter the [green]message[/] to send:", cancellationToken);
+        var messagePrompt = ConsoleAccessor.TextPrompt<string>("Enter the [green]message[/] to send:");
+        var message = await Console.PromptAsync(messagePrompt, cancellationToken);
         if (string.IsNullOrWhiteSpace(message))
         {
             Console.WriteLine("Message cannot be empty.");
