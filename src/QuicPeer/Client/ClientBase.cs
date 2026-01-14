@@ -6,26 +6,17 @@ using QuicPeer.Options;
 
 namespace QuicPeer.Client;
 
-public abstract class ClientBase(ILogger logger, IOptions<ClientOptions> options)
+public abstract class ClientBase(IOptions<ClientOptions> options)
 {
-    protected ILogger Logger { get; } = logger;
     protected ClientOptions Options => options.Value;
     protected abstract Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct);
     public async Task RunClientAsync(CancellationToken ct)
     {
-        try
-        {
-            var options = BootstrapClient();
-            options.ClientAuthenticationOptions.LocalCertificateSelectionCallback = LoadClientCertificate;
 
+        var options = BootstrapClient();
+        options.ClientAuthenticationOptions.LocalCertificateSelectionCallback = LoadClientCertificate;
 
-            await Task.Delay(1000, ct);
-            await RunClientInternal(options, ct);
-        }
-        catch (NotSupportedException ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
+        await RunClientInternal(options, ct);
     }
 
     private QuicClientConnectionOptions BootstrapClient()

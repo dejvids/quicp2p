@@ -1,4 +1,4 @@
-name: SonarQube
+name: Build and Analyze
 on:
   push:
     branches:
@@ -37,11 +37,25 @@ jobs:
         run: |
           New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
-      - name: Build and analyze
+      - name: Begin Sonar Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"dejvids_quicp2p" /o:"dawidsurys" /d:sonar.token="$env:SONAR_TOKEN"
-          dotnet build .\src
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin `
+           /k:"dejvids_quicp2p" `
+           /o:"dawidsurys" `
+           /d:sonar.token="$env:SONAR_TOKEN" `
+           /d:sonar.cs.opencover.reportsPaths="**/*.opencover.xml"
+      - name: Build
+        run: |    
+          dotnet build -c Release .\src
+      - name: Test
+        run: |     
+          dotnet test .\src\QuicPeer.Tests\ --no-build -c Release --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+      - name: End Sonar Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
+        run: |    
           ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"

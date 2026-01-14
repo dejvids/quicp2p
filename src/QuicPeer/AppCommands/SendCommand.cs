@@ -3,29 +3,37 @@ using Spectre.Console;
 
 namespace QuicPeer.AppCommands;
 
-internal class SendCommand : AppCommand<PeerClient>
+public class SendCommand : AppCommand<IPeerClient>
 {
+    public SendCommand(ILogger<SendCommand> logger, IConsoleAccessor consoleAccessor) 
+        : base(logger, consoleAccessor)
+    {
+    }
+
     public override string CommandName => "Send";
 
-    protected override async ValueTask Execute(PeerClient peerClient, CancellationToken cancellationToken)
+    public override async ValueTask Execute(IPeerClient peerClient, CancellationToken cancellationToken)
     {
-        var message = AnsiConsole.Ask<string>("Enter the [green]message[/] to send:");
+        var messagePrompt = ConsoleAccessor.TextPrompt<string>("Enter the [green]message[/] to send:");
+        var message = await Console.PromptAsync(messagePrompt, cancellationToken);
         if (string.IsNullOrWhiteSpace(message))
         {
-            AnsiConsole.WriteLine("Message cannot be empty.");
+            Console.WriteLine("Message cannot be empty.");
             return;
         }
 
         try
         {
             await peerClient.SendAsync(message);
-            AnsiConsole.MarkupLine("[green4]Message sent.[/]");
-            AnsiConsole.Prompt(new TextPrompt<string>("Continue").AllowEmpty());
-            AnsiConsole.Clear();
+            Console.MarkupLine("[green4]Message sent.[/]");
+            await Console.PromptAsync(new TextPrompt<string>("Continue").AllowEmpty(), cancellationToken);
+            Console.Clear();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            AnsiConsole.MarkupLine("[red3]Failed to send message[/]");
+            Console.MarkupLine("[red3]Failed to send message[/]");
+
+            Logger.LogError(ex, "Couldn't send message.");
         }
 
     }

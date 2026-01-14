@@ -4,13 +4,12 @@ using System.Net;
 
 namespace QuicPeer.Client;
 
-public class PeerClientFactory(ILoggerFactory loggerFactory, IOptions<ClientOptions> options) : IPeerClientFactory
+public class PeerClientFactory(IOptions<ClientOptions> options) : IPeerClientFactory
 {
-    private readonly ILoggerFactory _loggerFactory = loggerFactory;
     private readonly IOptions<ClientOptions> _options = options;
 
     public PeerClient CreatePeerClient(IPEndPoint remoteEndpoint)
     {
-        return new PeerClient(_loggerFactory.CreateLogger<PeerClient>(), _options, remoteEndpoint);
+        return new PeerClient(_options, remoteEndpoint);
     }
 }

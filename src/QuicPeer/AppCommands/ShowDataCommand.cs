@@ -4,28 +4,31 @@ using Spectre.Console;
 
 namespace QuicPeer.AppCommands;
 
-internal class ShowDataCommand : AppCommand<IEnumerable<MessageCommand>>
+public class ShowDataCommand : AppCommand<IEnumerable<MessageCommand>>
 {
+    public ShowDataCommand(ILogger<ShowDataCommand> logger, IConsoleAccessor consoleAccessor) : base(logger, consoleAccessor)
+    {
+    }
+
     public override string CommandName => "Data";
 
-    protected override ValueTask Execute(IEnumerable<MessageCommand> messages, CancellationToken cancellationToken)
+    public override async ValueTask Execute(IEnumerable<MessageCommand> messages, CancellationToken cancellationToken)
     {
         if (!messages.Any())
         {
-            AnsiConsole.WriteLine("Empty");
+            Console.WriteLine("Empty");
         }
         else
         {
             foreach (var message in messages)
             {
-                AnsiConsole.MarkupLine("Message at [yellow]{0}[/] from: [yellow]{1}[/]", message.Time.ToString("HH:mm:ss"), message.From);
-                AnsiConsole.MarkupLine("\t [blue]{0}[/]", message.Message);
-                AnsiConsole.WriteLine();
+                Console.MarkupLine("Message at [yellow]{0}[/] from: [yellow]{1}[/]", message.Time.ToString("HH:mm:ss"), message.From);
+                Console.MarkupLine("\t [blue]{0}[/]", message.Message);
+                Console.WriteLine();
             }
         }
-        AnsiConsole.Prompt(new TextPrompt<string>("Ok").AllowEmpty());
-        AnsiConsole.Clear();
 
-        return ValueTask.CompletedTask;
+        await Console.PromptAsync(new TextPrompt<string>("Ok").AllowEmpty(), cancellationToken);
+        Console.Clear();
     }
 }

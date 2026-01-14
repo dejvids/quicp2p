@@ -1,61 +1,122 @@
 ﻿using QuicPeer.Client;
+using QuicPeer.Client.Exceptions;
 using Spectre.Console;
-using Spectre.Console.Extensions;
 
 namespace QuicPeer.AppCommands;
 
-internal class ConnectCommand : AppCommand
+public class ConnectCommand : AppCommand
 {
     private const string DisconnectCommand = "Disconnect";
     private readonly PeerConnector _peerConnector;
 
-    public override string CommandName { get; } = "Connect";
-    protected SendCommand SendCommand { get; } = new();
+    public override string CommandName => "Connect";
+    private SendCommand SendCommand { get; }
+    private SendFileCommand SendFileCommand { get; }
 
-    public ConnectCommand(PeerConnector peerConnector)
+    private readonly List<string> _subMenuOptions;
+
+    public ConnectCommand(ILogger<ConnectCommand> logger,
+                          IConsoleAccessor consoleAccessor,
+                          PeerConnector peerConnector,
+                          SendCommand sendCommand,
+                          SendFileCommand sendFileCommand) : base(logger, consoleAccessor)
     {
         _peerConnector = peerConnector;
+        SendCommand = sendCommand;
+        SendFileCommand = sendFileCommand;
+
+        _subMenuOptions = [SendCommand.CommandName, SendFileCommand.CommandName, DisconnectCommand];
     }
 
-    protected override async ValueTask Execute(CancellationToken cancellationToken)
+    public override async ValueTask Execute(CancellationToken cancellationToken)
     {
-        var endpoint = AnsiConsole.Ask<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):");
-
-
-        var peerClient = await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Line)
-            .StartAsync("Conecting...", async ctx => await _peerConnector.Connect(endpoint, cancellationToken));
-
-        AnsiConsole.Clear();
+        var peerClient = await SetupConnection(cancellationToken);
         if (peerClient is null)
         {
-            AnsiConsole.MarkupLine("[red]Couldn't connect to[/] [yellow]{0}[/]", endpoint);
             return;
         }
 
-        while (peerClient is not null && !cancellationToken.IsCancellationRequested)
+        Console.MarkupLine("[green]:check_mark: Connected to [/] {0} ", peerClient.RemoteEndpoint!);
+        await KeepConnection(peerClient, cancellationToken);
+    }
+
+    private async Task KeepConnection(IPeerClient peerClient, CancellationToken cancellationToken)
+    {
+        var subMenu = ConsoleAccessor.SelectionPrompt(_subMenuOptions);
+        while (!cancellationToken.IsCancellationRequested)
         {
-            AnsiConsole.MarkupLine("[green]:check_mark: Connected to {0}[/] ", endpoint);
-            var clientCommand = AnsiConsole.Prompt(new SelectionPrompt<string>()
-                .AddChoices(SendCommand.CommandName, DisconnectCommand));
+            var clientCommand = await Console.PromptAsync(subMenu, cancellationToken);
 
             if (clientCommand.Equals(DisconnectCommand, StringComparison.OrdinalIgnoreCase))
             {
-                if(!AnsiConsole.Confirm("Are you sure?"))
+                if (! await ConsoleAccessor.ConfirmAsync("Are you sure?", true, cancellationToken))
                 {
-                    AnsiConsole.Clear();
+                    Console.Clear();
                     continue;
                 }
 
                 await peerClient.DisconnectAsync();
-                AnsiConsole.Clear();
+                Console.Clear();
                 break;
             }
 
             if (clientCommand.Equals(SendCommand.CommandName))
             {
-                await SendCommand.Start(peerClient, cancellationToken);
+                await SendCommand.Execute(peerClient, cancellationToken);
+                continue;
             }
+
+            if (clientCommand.Equals(SendFileCommand.CommandName))
+            {
+                await SendFileCommand.Execute(peerClient, cancellationToken);
+            }
+
+        }
+    }
+
+    private async Task<IPeerClient?> SetupConnection(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            var textPrompt = ConsoleAccessor.TextPrompt<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):");
+            var endpoint = await Console.PromptAsync(textPrompt, cancellationToken);
+            var peerClient = await ConsoleAccessor.SpinnerAsync("Connecting...", 
+                Connect(endpoint, cancellationToken), cancellationToken);
+
+            if (peerClient is null)
+            {
+                if (await ConsoleAccessor.ConfirmAsync("Retry?", true, cancellationToken))
+                {
+                    continue;
+                }
+
+                Console.Clear();
+                return null;
+            }
+
+            Console.Clear();
+            return peerClient;
+        }
+    }
+
+    private async Task<IPeerClient?> Connect(string endpoint, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _peerConnector.Connect(endpoint, cancellationToken);
+
+        }
+        catch (EndpointParsingException)
+        {
+            Console.MarkupLine("[red]Invalid endpoint format.[/] Please use IP:Port or Hostname:Port.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Connection failed");
+
+            Console.MarkupLine("[red]Couldn't connect to[/] [yellow]{0}[/]", endpoint);
+            return null;
         }
     }
 }

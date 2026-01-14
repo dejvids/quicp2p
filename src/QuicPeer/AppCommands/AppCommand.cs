@@ -1,27 +1,34 @@
-﻿namespace QuicPeer.AppCommands;
+﻿using Spectre.Console;
 
-internal abstract class AppCommand
+namespace QuicPeer.AppCommands;
+
+public abstract class AppCommand
 {
     public abstract string CommandName { get; }
 
-    protected abstract ValueTask Execute(CancellationToken cancellationToken);
+    protected ILogger Logger { get; }
+    protected IConsoleAccessor ConsoleAccessor { get; }
+    protected IAnsiConsole Console => ConsoleAccessor.Console;
 
-    public async ValueTask Start(CancellationToken cancellationToken)
+    protected AppCommand(ILogger logger, IConsoleAccessor consoleAccessor)
     {
-        await Execute(cancellationToken);
+        Logger = logger;
+        ConsoleAccessor = consoleAccessor;
     }
+
+    public abstract ValueTask Execute(CancellationToken cancellationToken);
 }
 
-internal abstract class AppCommand<T> : AppCommand
+public abstract class AppCommand<T> : AppCommand
 {
-    protected abstract ValueTask Execute(T param, CancellationToken cancellationToken);
-
-    public async ValueTask Start(T param, CancellationToken cancellationToken)
+    protected AppCommand(ILogger logger, IConsoleAccessor consoleAccessor) 
+        : base(logger, consoleAccessor)
     {
-        await Execute(param, cancellationToken);
     }
 
-    protected override ValueTask Execute(CancellationToken cancellationToken)
+    public abstract ValueTask Execute(T param, CancellationToken cancellationToken);
+
+    public override ValueTask Execute(CancellationToken cancellationToken)
     {
         return ValueTask.CompletedTask;
     }
