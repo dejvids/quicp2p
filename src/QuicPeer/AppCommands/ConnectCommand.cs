@@ -80,7 +80,8 @@ public class ConnectCommand : AppCommand
         {
             var textPrompt = ConsoleAccessor.TextPrompt<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):");
             var endpoint = await Console.PromptAsync(textPrompt, cancellationToken);
-            var peerClient = await ConsoleAccessor.SpinnerAsync("Connecting...", Connect(endpoint, cancellationToken));
+            var peerClient = await ConsoleAccessor.SpinnerAsync("Connecting...", 
+                Connect(endpoint, cancellationToken), cancellationToken);
 
             if (peerClient is null)
             {

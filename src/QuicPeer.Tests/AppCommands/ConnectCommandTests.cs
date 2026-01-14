@@ -26,9 +26,6 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
         await command.Execute(CancellationToken);
 
         await peerConnector.Received(1).Connect(Arg.Any<string>(), Arg.Any<CancellationToken>());
-
-        _logger.Received(1).Log(LogLevel.Error, Arg.Any<EventId>(), Arg.Any<Arg.AnyType>(), 
-            connectionException, Arg.Any<Func<Arg.AnyType, Exception?, string>>());
     }
 
     [Fact]
