@@ -56,6 +56,7 @@ public sealed class ConsoleAppTests : IDisposable
     {
         var serverMessageQueue = Substitute.For<IMessageQueue<IServerCommand>>();
         var receivedMessages = 0;
+        using var cts = new CancellationTokenSource(1000);
         serverMessageQueue.DequeueAllAsync(Arg.Any<CancellationToken>()).ReturnsForAnyArgs(_ =>
         {
             return AsyncEnumerable.Range(1, 2).Select(i => 
@@ -69,8 +70,8 @@ public sealed class ConsoleAppTests : IDisposable
             serverMessageQueue,
             ConnectCommand,
             ShowDataCommand);
-
-        await consoleApp.StartAsync(_cts.Token);
+        
+        await consoleApp.StartAsync(cts.Token);
 
         serverMessageQueue.Received().DequeueAllAsync(Arg.Any<CancellationToken>());
 

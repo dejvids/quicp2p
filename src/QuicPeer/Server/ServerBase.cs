@@ -13,7 +13,7 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
     protected ILogger Logger { get; } = logger;
     protected ServerOptions Options { get; } = serverOptions.Value;
    
-    public async Task RunServerAsync()
+    protected async Task RunServerAsync()
     {
         try
         {

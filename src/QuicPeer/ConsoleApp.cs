@@ -16,6 +16,12 @@ public class ConsoleApp : IHostedService
     private readonly Dictionary<string, AppCommand> _appCommands;
     private readonly ConcurrentQueue<MessageCommand> _messages = new();
 
+    static ConsoleApp()
+    {
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.InputEncoding = Encoding.UTF8;
+    }
+    
     public ConsoleApp(ILogger<ConsoleApp> logger,
        IConsoleAccessor consoleAccessor,
         IMessageQueue<IServerCommand> serverMessageQueue,
@@ -30,9 +36,6 @@ public class ConsoleApp : IHostedService
         AppCommand[] commands = [connectCommand, showDataCommand];
 
         _appCommands = commands.ToDictionary(c => c.CommandName);
-
-        System.Console.OutputEncoding = Encoding.UTF8;
-        System.Console.InputEncoding = Encoding.UTF8;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)

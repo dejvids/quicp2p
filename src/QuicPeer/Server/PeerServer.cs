@@ -1,20 +1,27 @@
-﻿using System.Net.Quic;
+﻿using System.Net;
+using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Options;
+using QuicPeer.Common;
+using QuicPeer.Common.Dto;
 using QuicPeer.Options;
 using QuicPeer.Server.Commands;
 
 namespace QuicPeer.Server;
 
-public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<PeerServer> logger, IMessageQueue<IServerCommand> messageQueue)
+public sealed class PeerServer(
+    IOptions<ServerOptions> configuration,
+    ILogger<PeerServer> logger,
+    IMessageQueue<IServerCommand> messageQueue,
+    IFilesReceiver filesReceiver)
     : ServerBase(configuration, logger), IAsyncDisposable
 {
     private QuicListener? _listener;
     private Task? _newConnectionsHandler;
-    private CancellationTokenSource _cancellationTokenSource;
-    private readonly IMessageQueue<IServerCommand> _commandChannel = messageQueue;
+    private CancellationTokenSource? _cancellationTokenSource;
+
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -24,7 +31,7 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
             await RunServerAsync();
 
             var tcs = new TaskCompletionSource();
-            using var _ = stoppingToken.Register(() => tcs.SetResult());
+            await using var _ = stoppingToken.Register(() => tcs.SetResult());
             await tcs.Task;
         }
         catch (Exception ex)
@@ -36,32 +43,37 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
     protected override async Task RunServerInternal(QuicListenerOptions options)
     {
         _listener = await QuicListener.ListenAsync(options);
-        _newConnectionsHandler = Task.Factory.StartNew(async () => await HandleNewConnections(_listener, _cancellationTokenSource.Token),
+        _newConnectionsHandler = Task.Factory.StartNew(
+            async () => await HandleNewConnections(_listener, _cancellationTokenSource!.Token),
             TaskCreationOptions.LongRunning);
 
         Logger.LogInformation("Listening on {Endpoint}", _listener.LocalEndPoint);
     }
 
-    protected override async ValueTask<QuicServerConnectionOptions> GetConnectionOptionsAsync(X509Certificate2 serverCertificate)
+    protected override async ValueTask<QuicServerConnectionOptions> GetConnectionOptionsAsync(
+        X509Certificate2 serverCertificate)
     {
         var baseOptions = await base.GetConnectionOptionsAsync(serverCertificate);
 
         baseOptions.ServerAuthenticationOptions.ClientCertificateRequired = true;
-        baseOptions.ServerAuthenticationOptions.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) =>
+        baseOptions.ServerAuthenticationOptions.RemoteCertificateValidationCallback =
+            (_, certificate, _, sslPolicyErrors) =>
+            {
+                if (certificate is not null)
                 {
-                    if (certificate is not null)
-                    {
-                        Logger.LogInformation("Client certificate received.");
-                        //Accept any certificate for poc purposes.
-                        return true;
-                    }
-                    if (sslPolicyErrors != SslPolicyErrors.None)
-                    {
-                        Logger.LogError("SSL Policy Errors: {Errors}", sslPolicyErrors);
-                        return false;
-                    }
+                    Logger.LogInformation("Client certificate received.");
+                    //Accept any certificate for poc purposes.
                     return true;
-                };
+                }
+
+                if (sslPolicyErrors != SslPolicyErrors.None)
+                {
+                    Logger.LogError("SSL Policy Errors: {Errors}", sslPolicyErrors);
+                    return false;
+                }
+
+                return true;
+            };
 
         return baseOptions;
     }
@@ -74,46 +86,74 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
 
             Logger.LogInformation("New connection from {RemoteEndpoint}", newConnection.RemoteEndPoint);
 
-            _ = Task.Run(async () =>
-            {
-                var buffer = new byte[1000];
-                while (!ct.IsCancellationRequested)
-                {
-                    var stream = await newConnection.AcceptInboundStreamAsync(ct);
-                    if(stream.Type is QuicStreamType.Unidirectional)
-                    {
-                        _ = Task.Run(async () => await ReadToFile(stream));
-                        continue;
-                    }
-
-                    var readBytes = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    var payload = buffer.AsSpan(0, readBytes);
-                    var message = Encoding.UTF8.GetString(payload);
-
-                    await _commandChannel.EnqueueAsync(new MessageCommand(newConnection.RemoteEndPoint.ToString(), message, TimeOnly.FromDateTime(DateTime.Now)));
-                }
-            });
+            _ = Task.Run(async () => await KeepConnection(newConnection, ct), ct);
         }
     }
 
-    private static async Task ReadToFile(QuicStream stream)
+    private async Task KeepConnection(QuicConnection newConnection, CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            var stream = await newConnection.AcceptInboundStreamAsync(ct);
+            if (stream.Type is QuicStreamType.Unidirectional)
+            {
+                _ = Task.Run(async () => await filesReceiver.ReceiveFileAsync(stream, ct), ct);
+                continue;
+            }
+
+            _ = Task.Run(async () => await HandleTextStream(stream, newConnection.RemoteEndPoint, ct), ct);
+        }
+    }
+
+    private async Task HandleTextStream(QuicStream stream,
+        IPEndPoint remoteEndpoint, CancellationToken ct)
+    {
+        var buffer = new byte[1000];
+        while (!ct.IsCancellationRequested && !stream.ReadsClosed.IsCompleted)
+        {
+            Array.Clear(buffer, 0, buffer.Length);
+            var readBytes = await stream.ReadAsync(buffer, ct);
+            var payload = buffer.AsSpan(0, readBytes);
+            var message = Encoding.UTF8.GetString(payload);
+            await messageQueue.EnqueueAsync(new MessageCommand(remoteEndpoint.ToString(),
+                message, TimeOnly.FromDateTime(DateTime.Now)));
+
+            if (!TryParseToFileMetadata(message, out var metadata) || metadata is null)
+            {
+                continue;
+            }
+            
+            await ReplaySender(stream, metadata, ct);
+        }
+    }
+
+    private async Task ReplaySender(QuicStream stream, FileMetadata metadata, CancellationToken ct)
+    {
+        filesReceiver.AcceptFile(metadata);
+        stream.WriteByte(ControlCodes.MetadataReceived);
+        await stream.FlushAsync(ct);
+        stream.CompleteWrites();
+    }
+
+    private static bool TryParseToFileMetadata(string message, out FileMetadata? dto)
     {
         try
         {
-            var randomFileName = Path.GetRandomFileName();
-            Directory.CreateDirectory("Downloads");  
-            using var fileStream = new FileStream($"Downloads\\{randomFileName}", FileMode.Create, FileAccess.Write);
-            await stream.CopyToAsync(fileStream);
+            dto = System.Text.Json.JsonSerializer.Deserialize<FileMetadata>(message);
+            return dto is { FileSize: > 0 };
         }
-        finally
+        catch (Exception)
         {
-            await stream.DisposeAsync();
+            dto = null;
+            return false;
         }
     }
 
+
+
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        Logger.LogInformation($"Stopping listener on port {501}");
+        Logger.LogInformation("Stopping listener on port.");
 
         _cancellationTokenSource?.CancelAsync();
 
@@ -142,6 +182,6 @@ public sealed class PeerServer(IOptions<ServerOptions> configuration, ILogger<Pe
         }
 
         await _listener.DisposeAsync();
-        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource?.Dispose();
     }
 }

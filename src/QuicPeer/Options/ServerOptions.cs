@@ -7,4 +7,5 @@ public class ServerOptions : PeerConnectionOptions
     public const string SectionName = "Server";
     public int Port { get; set; } = 501;
     public required CertificateOptions ServerCertificate { get; set; }
+    public FilesReceiverOptions FilesReceiver { get; set; } = new();
 }
