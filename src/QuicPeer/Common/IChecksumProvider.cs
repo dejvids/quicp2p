@@ -1,7 +1,9 @@
-﻿namespace QuicPeer.Common;
+﻿using System.IO.Abstractions;
+
+namespace QuicPeer.Common;
 
 public interface IChecksumProvider
 {
-    string GetChecksum(FileInfo file);
-    void VerifyChecksum(FileInfo file, string checksum);
+    string GetChecksum(IFileInfo file);
+    void VerifyChecksum(IFileInfo file, string checksum);
 }

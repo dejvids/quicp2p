@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.IO.Abstractions;
+using System.Net;
 using System.Net.Quic;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -47,7 +48,7 @@ public sealed class PeerClient(
         textStream.CompleteWrites();
     }
 
-    public async Task SendFileAsync(FileInfo file)
+    public async Task SendFileAsync(IFileInfo file)
     {
         if (_connection is null || !file.Exists)
         {
@@ -82,7 +83,7 @@ public sealed class PeerClient(
         const int timeout = 3000;
         var jsonPayload = System.Text.Json.JsonSerializer.Serialize(metadata);
         var payload = Encoding.UTF8.GetBytes(jsonPayload);
-        metadataStream.Write(payload);
+        await metadataStream.WriteAsync(payload);
         await metadataStream.FlushAsync(_cts.Token);
 
         var acknowledgement = new byte[1];

@@ -1,18 +1,19 @@
-﻿using System.Security.Cryptography;
+﻿using System.IO.Abstractions;
+using System.Security.Cryptography;
 using QuicPeer.Common.Exceptions;
 
 namespace QuicPeer.Common;
 
 public class CheckSumProvider : IChecksumProvider
 {
-    public string GetChecksum(FileInfo file)
+    public string GetChecksum(IFileInfo file)
     {
         return !file.Exists 
             ? throw new FileNotFoundException("File not found", file.FullName) 
             : Convert.ToHexString(ComputeHashAsync(file));
     }
 
-    private static byte[] ComputeHashAsync(FileInfo file)
+    private static byte[] ComputeHashAsync(IFileInfo file)
     {
         using var sha256 = SHA256.Create();
         using var fileStream = file.OpenRead();
@@ -21,7 +22,7 @@ public class CheckSumProvider : IChecksumProvider
         return sha256.ComputeHash(fileStream);
     }
 
-    public void VerifyChecksum(FileInfo file, string checksum)
+    public void VerifyChecksum(IFileInfo file, string checksum)
     {
         var actualChecksum = GetChecksum(file);
 

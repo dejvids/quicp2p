@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.IO.Abstractions;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using QuicPeer.AppCommands;
 
@@ -77,7 +78,8 @@ public static class AppCommandsMock
     public class SendFileCommandMock : SendFileCommand
     {
         public SendFileCommandMock()
-            : base(Substitute.For<ILogger<SendFileCommand>>(), Substitute.For<IConsoleAccessor>())
+            : base(Substitute.For<ILogger<SendFileCommand>>(), Substitute.For<IConsoleAccessor>(),
+                Substitute.For<IFileSystem>())
         {
         }
     }

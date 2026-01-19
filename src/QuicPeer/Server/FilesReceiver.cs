@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Net.Quic;
+﻿using System.IO.Abstractions;
 using Microsoft.Extensions.Options;
 using QuicPeer.Common;
 using QuicPeer.Common.Dto;
@@ -11,31 +10,21 @@ public class FilesReceiver : IFilesReceiver
 {
     private readonly FilesReceiverOptions _options;
     private readonly IChecksumProvider _checksumProvider;
-    private readonly ConcurrentDictionary<long, FileMetadata> _files = new();
     private readonly ILogger _logger;
+    private readonly IFileSystem _fileSystem;
 
     public FilesReceiver(IOptions<FilesReceiverOptions> options, IChecksumProvider checksumProvider,
-        ILogger<FilesReceiver> logger)
+        ILogger<FilesReceiver> logger, IFileSystem fileSystem)
     {
         _options = options.Value;
         _checksumProvider = checksumProvider;
         _logger = logger;
+        _fileSystem = fileSystem;
     }
-
-    public void AcceptFile(FileMetadata metadata)
+    
+    public async Task ReceiveFileAsync(Stream stream, FileMetadata metadata, CancellationToken ct)
     {
-        _files.AddOrUpdate(metadata.DataStreamId, metadata, (_, _) => metadata);
-    }
-
-    public async Task ReceiveFileAsync(QuicStream stream, CancellationToken ct)
-    {
-        var metadata = _files.GetValueOrDefault(stream.Id);
-        if (metadata is null)
-        {
-            return;
-        }
-
-        FileInfo downloadFileInfo;
+        IFileInfo downloadFileInfo;
         try
         {
             downloadFileInfo = await CopyToFile(stream, ct);
@@ -53,6 +42,7 @@ public class FilesReceiver : IFilesReceiver
         catch (Exception e)
         {
             _logger.LogError(e, "Error while verifying a checksum of downloaded file.");
+            RenameToInvalid(downloadFileInfo);
             return;
         }
 
@@ -66,11 +56,16 @@ public class FilesReceiver : IFilesReceiver
         }
     }
 
-    private void RenameFile(string originalFilename, FileInfo downloadFileInfo)
+    private void RenameToInvalid(IFileInfo downloadFileInfo)
     {
-        var destinationPath = Path.Combine(_options.DownloadsDirectory, originalFilename);
+        _fileSystem.Path.ChangeExtension(downloadFileInfo.Name, "invalid");
+    }
 
-        if (File.Exists(destinationPath))
+    private void RenameFile(string originalFilename, IFileInfo downloadFileInfo)
+    {
+        var destinationPath = _fileSystem.Path.Combine(_options.DownloadsDirectory, originalFilename);
+
+        if (_fileSystem.File.Exists(destinationPath))
         {
             destinationPath = GetUniqueFilenameForCopy(destinationPath);
         }
@@ -78,11 +73,11 @@ public class FilesReceiver : IFilesReceiver
         downloadFileInfo.MoveTo(destinationPath, false);
     }
 
-    private static string GetUniqueFilenameForCopy(string destinationPath)
+    private string GetUniqueFilenameForCopy(string destinationPath)
     {
-        var destinationFileName = Path.GetFileNameWithoutExtension(destinationPath);
-        var destinationFileExtension = Path.GetExtension(destinationPath);
-        var directoryPath = Path.GetDirectoryName(destinationPath);
+        var destinationFileName = _fileSystem.Path.GetFileNameWithoutExtension(destinationPath);
+        var destinationFileExtension = _fileSystem.Path.GetExtension(destinationPath);
+        var directoryPath = _fileSystem.Path.GetDirectoryName(destinationPath);
         if (directoryPath is null)
         {
             return destinationPath;
@@ -91,21 +86,21 @@ public class FilesReceiver : IFilesReceiver
         var copyIndex = 1;
         do
         {
-            destinationPath = Path.Combine(directoryPath,
+            destinationPath = _fileSystem.Path.Combine(directoryPath,
                 $"{destinationFileName}({copyIndex++}){destinationFileExtension}");
-        } while (File.Exists(destinationPath));
+        } while (_fileSystem.File.Exists(destinationPath));
 
         return destinationPath;
     }
 
-    private async Task<FileInfo> CopyToFile(QuicStream sourceStream, CancellationToken ct)
+    private async Task<IFileInfo> CopyToFile(Stream sourceStream, CancellationToken ct)
     {
-        var filePath = Path.Combine(_options.DownloadsDirectory, Path.GetRandomFileName());
-        var fileInfo = new FileInfo(filePath);
+        var filePath = _fileSystem.Path.Combine(_options.DownloadsDirectory, _fileSystem.Path.GetRandomFileName());
+        var fileInfo = _fileSystem.FileInfo.New(filePath);
         var fileStream = fileInfo.Create();
         try
         {
-            Directory.CreateDirectory(_options.DownloadsDirectory);
+            _fileSystem.Directory.CreateDirectory(_options.DownloadsDirectory);
             await sourceStream.CopyToAsync(fileStream, ct);
             await fileStream.FlushAsync(ct);
         }

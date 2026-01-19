@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
@@ -21,7 +22,7 @@ public sealed class PeerServer(
     private QuicListener? _listener;
     private Task? _newConnectionsHandler;
     private CancellationTokenSource? _cancellationTokenSource;
-
+    private readonly ConcurrentDictionary<long, FileMetadata> _files = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -97,7 +98,11 @@ public sealed class PeerServer(
             var stream = await newConnection.AcceptInboundStreamAsync(ct);
             if (stream.Type is QuicStreamType.Unidirectional)
             {
-                _ = Task.Run(async () => await filesReceiver.ReceiveFileAsync(stream, ct), ct);
+                if (!_files.TryGetValue(stream.Id, out var metadata))
+                {
+                    continue;
+                }
+                _ = Task.Run(async () => await filesReceiver.ReceiveFileAsync(stream, metadata, ct), ct);
                 continue;
             }
 
@@ -129,7 +134,7 @@ public sealed class PeerServer(
 
     private async Task ReplaySender(QuicStream stream, FileMetadata metadata, CancellationToken ct)
     {
-        filesReceiver.AcceptFile(metadata);
+        _files.AddOrUpdate(metadata.DataStreamId, metadata, (_, _) => metadata);
         stream.WriteByte(ControlCodes.MetadataReceived);
         await stream.FlushAsync(ct);
         stream.CompleteWrites();

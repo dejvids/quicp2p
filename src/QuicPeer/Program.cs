@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using System.IO.Abstractions;
+using Microsoft.Extensions.Options;
 using QuicPeer;
 using QuicPeer.AppCommands;
 using QuicPeer.Client;
@@ -25,6 +26,7 @@ builder.Services.AddAppCommands();
 builder.Services.AddScoped<IConsoleAccessor, ConsoleAccessor>();
 builder.Services.AddScoped<IChecksumProvider, CheckSumProvider>();
 builder.Services.AddScoped<IFilesReceiver, FilesReceiver>();
+builder.Services.AddSingleton<IFileSystem>(new FileSystem());
 
 builder.Services.AddOptionsWithValidateOnStart<CertificateOptions>()
     .Bind(builder.Configuration.GetSection(CertificateOptions.SectionName));
