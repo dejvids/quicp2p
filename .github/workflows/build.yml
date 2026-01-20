@@ -47,7 +47,7 @@ jobs:
            /o:"dawidsurys" `
            /d:sonar.token="$env:SONAR_TOKEN" `
            /d:sonar.cs.opencover.reportsPaths="**/*.opencover.xml" `
-           /d:sonar.coverage.exclusions="src/QuicPeer.Tests/**/*, src/**/Program.cs, src/**/*Exception.cs"
+           /d:sonar.coverage.exclusions="src/QuicPeer.Tests/**/*, src/**/Program.cs, src/**/*Exception.cs, src/**/Options/*Options.cs"
       - name: Build
         run: |    
           dotnet build -c Release .\src
