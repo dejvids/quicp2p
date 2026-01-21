@@ -1,15 +1,14 @@
 ﻿using Microsoft.Extensions.Options;
 using QuicPeer.Options;
 using System.Net;
+using QuicPeer.Common;
 
 namespace QuicPeer.Client;
 
-public class PeerClientFactory(IOptions<ClientOptions> options) : IPeerClientFactory
+public class PeerClientFactory(IOptions<ClientOptions> options, IChecksumProvider checksumProvider) : IPeerClientFactory
 {
-    private readonly IOptions<ClientOptions> _options = options;
-
     public PeerClient CreatePeerClient(IPEndPoint remoteEndpoint)
     {
-        return new PeerClient(_options, remoteEndpoint);
+        return new PeerClient(options, remoteEndpoint, checksumProvider);
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using System.IO.Abstractions;
+using Microsoft.Extensions.Options;
 using QuicPeer;
 using QuicPeer.AppCommands;
 using QuicPeer.Client;
@@ -7,6 +8,9 @@ using QuicPeer.Options;
 using QuicPeer.Server;
 using QuicPeer.Server.Commands;
 using System.Runtime.Versioning;
+using System.Text;
+using QuicPeer.Common;
+using Spectre.Console;
 
 [assembly: SupportedOSPlatform("windows")]
 [assembly: SupportedOSPlatform("linux")]
@@ -20,6 +24,9 @@ builder.Services.AddScoped<PeerConnector>();
 builder.Services.AddScoped<IPeerClientFactory, PeerClientFactory>();
 builder.Services.AddAppCommands();
 builder.Services.AddScoped<IConsoleAccessor, ConsoleAccessor>();
+builder.Services.AddScoped<IChecksumProvider, CheckSumProvider>();
+builder.Services.AddScoped<IFilesReceiver, FilesReceiver>();
+builder.Services.AddSingleton<IFileSystem>(new FileSystem());
 
 builder.Services.AddOptionsWithValidateOnStart<CertificateOptions>()
     .Bind(builder.Configuration.GetSection(CertificateOptions.SectionName));
@@ -33,8 +40,9 @@ builder.Services.AddOptionsWithValidateOnStart<ClientOptions>()
     {
         clientOptions.ClientCertificate = certificateOptions.Value;
     }).Bind(builder.Configuration.GetSection(ClientOptions.SectionName));
-
-var serverMessageQueue = new ServerMessageQueue();
+builder.Services.AddOptionsWithValidateOnStart<FilesReceiverOptions>()
+    .Bind(builder.Configuration.GetSection(ServerOptions.SectionName)
+        .GetSection(FilesReceiverOptions.SectionName));
 
 builder.Services.AddSingleton<IMessageQueue<IServerCommand>, ServerMessageQueue>();
 

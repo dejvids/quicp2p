@@ -3,7 +3,6 @@
 public class PeerClientException : Exception
 {
     public PeerClientException()
-        : base()
     {
     }
 

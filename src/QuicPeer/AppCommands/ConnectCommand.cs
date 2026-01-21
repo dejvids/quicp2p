@@ -1,4 +1,5 @@
-﻿using QuicPeer.Client;
+﻿using System.Text;
+using QuicPeer.Client;
 using QuicPeer.Client.Exceptions;
 using Spectre.Console;
 
@@ -36,7 +37,9 @@ public class ConnectCommand : AppCommand
             return;
         }
 
-        Console.MarkupLine("[green]:check_mark: Connected to [/] {0} ", peerClient.RemoteEndpoint!);
+        System.Console.InputEncoding = Encoding.UTF8;
+        System.Console.OutputEncoding = Encoding.UTF8;
+        AnsiConsole.MarkupLine("[green]:check_mark:[/] Connected to {0} ", peerClient.RemoteEndpoint!);
         await KeepConnection(peerClient, cancellationToken);
     }
 

@@ -1,19 +1,27 @@
-﻿using System.Net;
+﻿using System.IO.Abstractions;
+using System.Net;
 using System.Net.Quic;
 using System.Text;
 using Microsoft.Extensions.Options;
+using QuicPeer.Client.Exceptions;
+using QuicPeer.Common;
+using QuicPeer.Common.Dto;
 using QuicPeer.Options;
 
 namespace QuicPeer.Client;
 
-public sealed class PeerClient(IOptions<ClientOptions> options, IPEndPoint remoteEndpoint)
+public sealed class PeerClient(
+    IOptions<ClientOptions> options,
+    IPEndPoint remoteEndpoint,
+    IChecksumProvider checksumProvider)
     : ClientBase(options), IPeerClient
 {
     private CancellationTokenSource _cts = new();
 
-    public EndPoint? RemoteEndpoint { get; private set; } 
+    public EndPoint? RemoteEndpoint { get; private set; }
 
     private QuicConnection? _connection;
+
     protected override async Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -23,7 +31,6 @@ public sealed class PeerClient(IOptions<ClientOptions> options, IPEndPoint remot
         var connection = await QuicConnection.ConnectAsync(options, ct);
         _connection = connection;
         RemoteEndpoint = connection.RemoteEndPoint;
-
     }
 
     public async Task SendAsync(string message)
@@ -41,26 +48,57 @@ public sealed class PeerClient(IOptions<ClientOptions> options, IPEndPoint remot
         textStream.CompleteWrites();
     }
 
-    public async Task SendFileAsync(FileInfo file)
+    public async Task SendFileAsync(IFileInfo file)
     {
-        if (_connection is null || !File.Exists(file.FullName))
+        if (_connection is null || !file.Exists)
         {
             return;
         }
 
         var dataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, _cts.Token);
-        using var fileStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+        var metadataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, _cts.Token);
+        var checksum = checksumProvider.GetChecksum(file);
+        var metadata = new FileMetadata(file.Name, file.Length, checksum, dataStream.Id);
 
+        
         try
         {
+            await SendMetadata(metadata, metadataStream);
+
+            await using var fileStream = file.OpenRead();
             await fileStream.CopyToAsync(dataStream, _cts.Token);
 
             dataStream.CompleteWrites();
+            dataStream.Close();
         }
         finally
         {
             await dataStream.DisposeAsync();
+            await metadataStream.DisposeAsync();
         }
+    }
+
+    private async Task SendMetadata(FileMetadata metadata, QuicStream metadataStream)
+    {
+        const int timeout = 3000;
+        var jsonPayload = System.Text.Json.JsonSerializer.Serialize(metadata);
+        var payload = Encoding.UTF8.GetBytes(jsonPayload);
+        await metadataStream.WriteAsync(payload);
+        await metadataStream.FlushAsync(_cts.Token);
+
+        var acknowledgement = new byte[1];
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+        cts.CancelAfter(timeout);
+        await metadataStream.ReadExactlyAsync(acknowledgement, 0, acknowledgement.Length, cts.Token);
+
+        var code = acknowledgement[0];
+
+        if (code != ControlCodes.MetadataReceived)
+        {
+            throw new MetadataException($"Did not receive metadata acknowledgement. Code: {code:X}");
+        }
+
+        metadataStream.CompleteWrites();
     }
 
     public async Task DisconnectAsync()
@@ -68,8 +106,10 @@ public sealed class PeerClient(IOptions<ClientOptions> options, IPEndPoint remot
         await _cts.CancelAsync();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _cts.Dispose();
+
+        return ValueTask.CompletedTask;
     }
 }

@@ -1,11 +1,15 @@
-﻿using QuicPeer.Client;
+﻿using System.IO.Abstractions;
+using QuicPeer.Client;
 using Spectre.Console;
 namespace QuicPeer.AppCommands;
 
 public class SendFileCommand : AppCommand<IPeerClient>
 {
-    public SendFileCommand(ILogger<SendFileCommand> logger, IConsoleAccessor consoleAccessor) : base(logger, consoleAccessor)
+    private readonly IFileSystem _fileSystem;
+    public SendFileCommand(ILogger<SendFileCommand> logger, IConsoleAccessor consoleAccessor, IFileSystem fileSystem) 
+        : base(logger, consoleAccessor)
     {
+        _fileSystem = fileSystem;
     }
 
     public override string CommandName => "Send file";
@@ -36,7 +40,7 @@ public class SendFileCommand : AppCommand<IPeerClient>
         }
     }
 
-    private async Task<FileInfo> GetFileAsync(CancellationToken cancellationToken)
+    private async Task<IFileInfo> GetFileAsync(CancellationToken cancellationToken)
     {
         var prompt = new TextPrompt<string>("Select path")
             .Validate(path =>
@@ -56,7 +60,7 @@ public class SendFileCommand : AppCommand<IPeerClient>
 
         var filePath = await Console.PromptAsync(prompt, cancellationToken);
 
-        return new FileInfo(TrimPath(filePath));
+        return _fileSystem.FileInfo.New(TrimPath(filePath));
     }
 
     private static string TrimPath(string path) => path.Trim().Trim("\"").ToString();
