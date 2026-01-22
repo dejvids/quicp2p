@@ -59,7 +59,8 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
             },
             IdleTimeout = TimeSpan.FromSeconds(Options.IdleTimeout),
             MaxInboundUnidirectionalStreams = Options.MaxInboundUnidirectionalStreams,
-            MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams
+            MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams,
+            KeepAliveInterval = TimeSpan.FromSeconds(Options.KeepAliveInterval)
         };
 
         AddClientAuthentication(connectionOptions);

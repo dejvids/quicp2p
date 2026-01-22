@@ -104,6 +104,11 @@ public sealed class PeerClient(
     public async Task DisconnectAsync()
     {
         await _cts.CancelAsync();
+        if (_connection is not null)
+        {
+            await _connection.CloseAsync(ControlCodes.ClientDisconnected);
+            await _connection.DisposeAsync();
+        }
     }
 
     public ValueTask DisposeAsync()

@@ -47,15 +47,38 @@ public sealed class PeerServer(
         {
             var newConnection = await listener.AcceptConnectionAsync(ct);
 
-            _ = OnPeerConnected(newConnection, ct);
+            _ = OnPeerConnected(newConnection, ct).ConfigureAwait(false);
         }
     }
 
     private Task OnPeerConnected(QuicConnection newConnection, CancellationToken ct)
     {
-        Logger.LogInformation("New connection from {RemoteEndpoint}", newConnection.RemoteEndPoint);
         var context = ConnectionContext.Create(newConnection);
-        return Task.Run(async () => await connectionManager.Process(context, ct), ct);
+        Logger.LogInformation("New connection from {RemoteEndpoint}", context.RemoteEndPoint);
+        return Task.Run(async () =>
+        {
+            try
+            {
+                await connectionManager.Process(context, ct).ConfigureAwait(false);
+            }
+            catch (QuicException e) when (e.QuicError == QuicError.ConnectionAborted)
+            {
+                Logger.LogInformation("Connection with {Endpoint} has been closed by the client",
+                    context.RemoteEndPoint);
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogInformation("Connection closed by the server.");
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, "An error occurred while processing connection");
+            }
+            finally
+            {
+                await context.DisposeAsync();
+            }
+        }, ct);
     }
     
     public override async Task StopAsync(CancellationToken cancellationToken)

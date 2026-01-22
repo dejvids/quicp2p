@@ -10,12 +10,12 @@ public class ConnectionContext : IAsyncDisposable
     private readonly QuicConnection _connection;
     private readonly ConcurrentDictionary<long, FileMetadata> _files = new();
 
-    public string RemoteEndpoint { get; }
+    public string RemoteEndPoint { get; }
 
     private ConnectionContext(QuicConnection connection)
     {
         _connection = connection;
-        RemoteEndpoint = connection.RemoteEndPoint.ToString();
+        RemoteEndPoint = connection.RemoteEndPoint.ToString();
     }
 
     public static ConnectionContext Create(QuicConnection connection)

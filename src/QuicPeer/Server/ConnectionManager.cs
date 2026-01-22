@@ -19,10 +19,13 @@ public class ConnectionManager
 
     public async Task Process(ConnectionContext context, CancellationToken ct)
     {
+        var streamHandlers = new List<Task>();
         await foreach (var stream in context.AcceptIncomingStreams(ct))
         {
-            _ = HandleStream(stream, context, ct);
+            streamHandlers.Add(HandleStream(stream, context, ct));
         }
+        
+        await Task.WhenAll(streamHandlers);
     }
 
     private Task HandleStream(QuicStream stream, ConnectionContext context, CancellationToken ct) =>
@@ -32,7 +35,7 @@ public class ConnectionManager
             {
                 if (stream.Type is QuicStreamType.Bidirectional)
                 {
-                    await OnTextStreamOpened(stream, context.RemoteEndpoint, context.OnFileMetadataReceived, ct);
+                    await OnTextStreamOpened(stream, context.RemoteEndPoint, context.OnFileMetadataReceived, ct);
                 }
                 else
                 {
