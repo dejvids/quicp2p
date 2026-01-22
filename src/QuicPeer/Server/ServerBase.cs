@@ -1,5 +1,4 @@
-﻿
-using System.Net.Quic;
+﻿using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -12,7 +11,14 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
 {
     protected ILogger Logger { get; } = logger;
     protected ServerOptions Options { get; } = serverOptions.Value;
-   
+
+    public override Task StopAsync(CancellationToken cancellationToken)
+    {
+        Logger.LogInformation("Stopping server");
+
+        return base.StopAsync(cancellationToken);
+    }
+
     protected async Task RunServerAsync()
     {
         try
@@ -24,7 +30,7 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
         }
         catch (NotSupportedException ex)
         {
-            Logger.LogError(ex, ex.Message);
+            Logger.LogError(ex, "msquic is not available.");
         }
     }
 
@@ -39,7 +45,8 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
         };
     }
 
-    protected virtual ValueTask<QuicServerConnectionOptions> GetConnectionOptionsAsync(X509Certificate2 serverCertificate)
+    protected virtual ValueTask<QuicServerConnectionOptions> GetConnectionOptionsAsync(
+        X509Certificate2 serverCertificate)
     {
         QuicServerConnectionOptions connectionOptions = new()
         {
@@ -55,7 +62,31 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
             MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams
         };
 
+        AddClientAuthentication(connectionOptions);
         return ValueTask.FromResult(connectionOptions);
+    }
+
+    private void AddClientAuthentication(QuicServerConnectionOptions connectionOptions)
+    {
+        connectionOptions.ServerAuthenticationOptions.ClientCertificateRequired = true;
+        connectionOptions.ServerAuthenticationOptions.RemoteCertificateValidationCallback =
+            (_, certificate, _, sslPolicyErrors) =>
+            {
+                if (certificate is not null)
+                {
+                    Logger.LogInformation("Client certificate received.");
+                    //Accept any certificate for poc purposes.
+                    return true;
+                }
+
+                if (sslPolicyErrors != SslPolicyErrors.None)
+                {
+                    Logger.LogError("SSL Policy Errors: {Errors}", sslPolicyErrors);
+                    return false;
+                }
+
+                return true;
+            };
     }
 
     protected abstract Task RunServerInternal(QuicListenerOptions options);
@@ -111,6 +142,4 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
 
         await File.WriteAllBytesAsync(certPath, bytes);
     }
-
 }
-

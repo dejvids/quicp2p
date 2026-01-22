@@ -26,6 +26,7 @@ builder.Services.AddAppCommands();
 builder.Services.AddScoped<IConsoleAccessor, ConsoleAccessor>();
 builder.Services.AddScoped<IChecksumProvider, CheckSumProvider>();
 builder.Services.AddScoped<IFilesReceiver, FilesReceiver>();
+builder.Services.AddScoped<ConnectionManager>();
 builder.Services.AddSingleton<IFileSystem>(new FileSystem());
 
 builder.Services.AddOptionsWithValidateOnStart<CertificateOptions>()

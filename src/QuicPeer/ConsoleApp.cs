@@ -117,7 +117,6 @@ public class ConsoleApp : IHostedService
         }
         catch (OperationCanceledException)
         {
-            return;
         }
     }
 }
