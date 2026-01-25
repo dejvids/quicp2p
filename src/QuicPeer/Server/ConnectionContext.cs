@@ -9,6 +9,7 @@ public class ConnectionContext : IAsyncDisposable
 {
     private readonly QuicConnection _connection;
     private readonly ConcurrentDictionary<long, FileMetadata> _files = new();
+    private bool _disposed;
 
     public string RemoteEndPoint { get; }
 
@@ -41,8 +42,24 @@ public class ConnectionContext : IAsyncDisposable
         }
     }
 
+    protected virtual async Task DisposeAsync(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            await _connection.DisposeAsync().ConfigureAwait(false);
+        }
+        
+        _disposed = true;
+    }
+
     public async ValueTask DisposeAsync()
     {
-        await _connection.DisposeAsync();
+        await DisposeAsync(true).ConfigureAwait(false);
+        GC.SuppressFinalize(this);
     }
 }

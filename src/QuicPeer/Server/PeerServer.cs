@@ -63,12 +63,12 @@ public sealed class PeerServer(
             }
             catch (QuicException e) when (e.QuicError == QuicError.ConnectionAborted)
             {
-                Logger.LogInformation("Connection with {Endpoint} has been closed by the client",
+                Logger.LogInformation(e, "Connection with {Endpoint} has been closed by the client",
                     context.RemoteEndPoint);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException e)
             {
-                Logger.LogInformation("Connection closed by the server.");
+                Logger.LogInformation(e, "Connection closed by the server.");
             }
             catch (Exception e)
             {
@@ -76,7 +76,7 @@ public sealed class PeerServer(
             }
             finally
             {
-                await context.DisposeAsync();
+                await context.DisposeAsync().ConfigureAwait(false);
             }
         }, ct);
     }
