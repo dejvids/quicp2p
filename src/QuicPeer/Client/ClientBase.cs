@@ -6,10 +6,15 @@ using QuicPeer.Options;
 
 namespace QuicPeer.Client;
 
-public abstract class ClientBase(IOptions<ClientOptions> options)
+public abstract class ClientBase
 {
-    protected ClientOptions Options => options.Value;
+    private ClientOptions Options { get; }
     protected abstract Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct);
+
+    protected ClientBase(IOptions<ClientOptions> options)
+    {
+        Options =  options.Value;
+    }
     public async Task RunClientAsync(CancellationToken ct)
     {
 
@@ -37,7 +42,7 @@ public abstract class ClientBase(IOptions<ClientOptions> options)
             },
             MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams,
             MaxInboundUnidirectionalStreams = Options.MaxInboundUnidirectionalStreams,
-            KeepAliveInterval = TimeSpan.FromSeconds(3)
+            KeepAliveInterval = TimeSpan.FromSeconds(Options.KeepAliveInterval)
         };
 
         return options;

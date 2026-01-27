@@ -8,9 +8,7 @@ using QuicPeer.Options;
 using QuicPeer.Server;
 using QuicPeer.Server.Commands;
 using System.Runtime.Versioning;
-using System.Text;
 using QuicPeer.Common;
-using Spectre.Console;
 
 [assembly: SupportedOSPlatform("windows")]
 [assembly: SupportedOSPlatform("linux")]
@@ -26,6 +24,7 @@ builder.Services.AddAppCommands();
 builder.Services.AddScoped<IConsoleAccessor, ConsoleAccessor>();
 builder.Services.AddScoped<IChecksumProvider, CheckSumProvider>();
 builder.Services.AddScoped<IFilesReceiver, FilesReceiver>();
+builder.Services.AddScoped<ConnectionManager>();
 builder.Services.AddSingleton<IFileSystem>(new FileSystem());
 
 builder.Services.AddOptionsWithValidateOnStart<CertificateOptions>()
