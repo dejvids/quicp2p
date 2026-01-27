@@ -47,7 +47,7 @@ public sealed class PeerServer(
         {
             var newConnection = await listener.AcceptConnectionAsync(ct);
 
-            _ = OnPeerConnected(newConnection, ct).ConfigureAwait(false);
+            _ = OnPeerConnected(newConnection, ct);
         }
     }
 
@@ -59,7 +59,7 @@ public sealed class PeerServer(
         {
             try
             {
-                await connectionManager.Process(context, ct).ConfigureAwait(false);
+                await connectionManager.Process(context, ct);
             }
             catch (QuicException e) when (e.QuicError == QuicError.ConnectionAborted)
             {
@@ -76,7 +76,7 @@ public sealed class PeerServer(
             }
             finally
             {
-                await context.DisposeAsync().ConfigureAwait(false);
+                await context.DisposeAsync();
             }
         }, ct);
     }

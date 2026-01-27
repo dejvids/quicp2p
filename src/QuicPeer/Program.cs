@@ -8,9 +8,7 @@ using QuicPeer.Options;
 using QuicPeer.Server;
 using QuicPeer.Server.Commands;
 using System.Runtime.Versioning;
-using System.Text;
 using QuicPeer.Common;
-using Spectre.Console;
 
 [assembly: SupportedOSPlatform("windows")]
 [assembly: SupportedOSPlatform("linux")]

@@ -51,7 +51,7 @@ public class ConnectionContext : IAsyncDisposable
 
         if (disposing)
         {
-            await _connection.DisposeAsync().ConfigureAwait(false);
+            await _connection.DisposeAsync();
         }
         
         _disposed = true;
@@ -59,7 +59,7 @@ public class ConnectionContext : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await DisposeAsync(true).ConfigureAwait(false);
+        await DisposeAsync(true);
         GC.SuppressFinalize(this);
     }
 }
