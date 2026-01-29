@@ -1,5 +1,4 @@
 ﻿using System.IO.Abstractions;
-using Microsoft.Extensions.Options;
 using QuicPeer;
 using QuicPeer.AppCommands;
 using QuicPeer.Client;
@@ -26,25 +25,8 @@ builder.Services.AddScoped<IChecksumProvider, CheckSumProvider>();
 builder.Services.AddScoped<IFilesReceiver, FilesReceiver>();
 builder.Services.AddScoped<ConnectionManager>();
 builder.Services.AddSingleton<IFileSystem>(new FileSystem());
-
-builder.Services.AddOptionsWithValidateOnStart<CertificateOptions>()
-    .Bind(builder.Configuration.GetSection(CertificateOptions.SectionName));
-builder.Services.AddOptionsWithValidateOnStart<ServerOptions>()
-.Configure<IOptions<CertificateOptions>>((serverOptions, certificateOptions) =>
-{
-    serverOptions.ServerCertificate = certificateOptions.Value;
-}).Bind(builder.Configuration.GetSection(ServerOptions.SectionName));
-builder.Services.AddOptionsWithValidateOnStart<ClientOptions>()
-    .Configure<IOptions<CertificateOptions>>((clientOptions, certificateOptions) =>
-    {
-        clientOptions.ClientCertificate = certificateOptions.Value;
-    }).Bind(builder.Configuration.GetSection(ClientOptions.SectionName));
-builder.Services.AddOptionsWithValidateOnStart<FilesReceiverOptions>()
-    .Bind(builder.Configuration.GetSection(ServerOptions.SectionName)
-        .GetSection(FilesReceiverOptions.SectionName));
-
 builder.Services.AddSingleton<IMessageQueue<IServerCommand>, ServerMessageQueue>();
-
+builder.ConfigureOptions();
 var app = builder.Build();
 CancellationTokenSource cts = new();
 

@@ -8,7 +8,7 @@ namespace QuicPeer.Client;
 
 public abstract class ClientBase
 {
-    private ClientOptions Options { get; }
+    protected ClientOptions Options { get; }
     protected abstract Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct);
 
     protected ClientBase(IOptions<ClientOptions> options)

@@ -8,15 +8,15 @@ namespace QuicPeer.Server;
 
 public class FilesReceiver : IFilesReceiver
 {
-    private readonly FilesReceiverOptions _options;
+    private readonly ServerTransferOptions _options;
     private readonly IChecksumProvider _checksumProvider;
     private readonly ILogger _logger;
     private readonly IFileSystem _fileSystem;
 
-    public FilesReceiver(IOptions<FilesReceiverOptions> options, IChecksumProvider checksumProvider,
+    public FilesReceiver(IOptions<ServerOptions> options, IChecksumProvider checksumProvider,
         ILogger<FilesReceiver> logger, IFileSystem fileSystem)
     {
-        _options = options.Value;
+        _options = options.Value.Transfer;
         _checksumProvider = checksumProvider;
         _logger = logger;
         _fileSystem = fileSystem;
@@ -101,7 +101,7 @@ public class FilesReceiver : IFilesReceiver
         var fileStream = fileInfo.Create();
         try
         {
-            await sourceStream.CopyToAsync(fileStream, ct);
+            await sourceStream.CopyToAsync(fileStream, _options.BufferSize, ct);
             await fileStream.FlushAsync(ct);
         }
         finally
