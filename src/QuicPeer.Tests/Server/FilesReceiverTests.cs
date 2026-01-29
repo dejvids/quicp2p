@@ -13,12 +13,12 @@ namespace QuicPeer.Tests.Server;
 public class FilesReceiverTests
 {
     private readonly ILogger<FilesReceiver> _logger = Substitute.For<ILogger<FilesReceiver>>();
-    private readonly IOptions<FilesReceiverOptions> _options = Substitute.For<IOptions<FilesReceiverOptions>>();
+    private readonly IOptions<ServerOptions> _options = Substitute.For<IOptions<ServerOptions>>();
     private readonly IFileSystem _fileSystem = Substitute.For<IFileSystem>();
 
     public FilesReceiverTests()
     {
-        _options.Value.Returns(new FilesReceiverOptions());
+        _options.Value.Returns(new ServerOptions(){ServerCertificate = new()});
     }
 
     private static IFileInfo MockFileSystem(IFileSystem fileSystem, string filename)
@@ -39,7 +39,7 @@ public class FilesReceiverTests
     public async Task should_create_directory_for_downloading_files()
     {
         const string downloadDirName = "downloadDir";
-        _options.Value.Returns(new FilesReceiverOptions { DownloadsDirectory = downloadDirName });
+        _options.Value.Transfer =new ServerTransferOptions() { DownloadsDirectory = downloadDirName};
         var fileReceiver = new FilesReceiver(_options, Substitute.For<IChecksumProvider>(), _logger,
             _fileSystem);
         var stream = Substitute.For<Stream>();
@@ -113,7 +113,7 @@ public class FilesReceiverTests
         
         await filesReceiver.ReceiveFileAsync(sourceStream, metadata, CancellationToken.None);
         
-        await sourceStream.Received(1).CopyToAsync(Arg.Any<FileSystemStream>(), Arg.Any<CancellationToken>());
+        await sourceStream.Received(1).CopyToAsync(Arg.Any<FileSystemStream>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
