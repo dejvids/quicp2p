@@ -15,7 +15,7 @@ internal static class LoggingExtensions
         var clientNamespace = typeof(PeerClient).Namespace;
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
-            .MinimumLevel.Information()
+            .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
 
             //General log

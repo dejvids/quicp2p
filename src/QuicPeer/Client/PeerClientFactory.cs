@@ -5,10 +5,10 @@ using QuicPeer.Common;
 
 namespace QuicPeer.Client;
 
-public class PeerClientFactory(IOptions<ClientOptions> options, IChecksumProvider checksumProvider) : IPeerClientFactory
+public class PeerClientFactory(ILoggerFactory loggerFactory, IOptions<ClientOptions> options, IChecksumProvider checksumProvider) : IPeerClientFactory
 {
     public PeerClient CreatePeerClient(IPEndPoint remoteEndpoint)
     {
-        return new PeerClient(options, remoteEndpoint, checksumProvider);
+        return new PeerClient(loggerFactory.CreateLogger<PeerClient>(), options, remoteEndpoint, checksumProvider);
     }
 }

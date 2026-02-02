@@ -29,25 +29,40 @@ public class ConnectCommand : AppCommand
         _subMenuOptions = [SendCommand.CommandName, SendFileCommand.CommandName, DisconnectCommand];
     }
 
-    public override async ValueTask Execute(CancellationToken cancellationToken)
+    public override async ValueTask<CommandResult> Execute(CancellationToken cancellationToken)
     {
         var peerClient = await SetupConnection(cancellationToken);
         if (peerClient is null)
         {
-            return;
+            return CommandResult.Fail;
         }
 
         System.Console.InputEncoding = Encoding.UTF8;
         System.Console.OutputEncoding = Encoding.UTF8;
         AnsiConsole.MarkupLine("[green]:check_mark:[/] Connected to {0} ", peerClient.RemoteEndpoint!);
-        await KeepConnection(peerClient, cancellationToken);
+        try
+        {
+            await KeepConnection(peerClient, cancellationToken);
+        }
+        catch (Exception)
+        {
+            return CommandResult.Fail;
+        }
+        
+        return CommandResult.Success;
     }
 
     private async Task KeepConnection(IPeerClient peerClient, CancellationToken cancellationToken)
     {
         var subMenu = ConsoleAccessor.SelectionPrompt(_subMenuOptions);
+        CommandResult? result = null;
         while (!cancellationToken.IsCancellationRequested)
         {
+            if (result?.Exit is true)
+            {
+                return;
+            }
+            
             var clientCommand = await Console.PromptAsync(subMenu, cancellationToken);
 
             if (clientCommand.Equals(DisconnectCommand, StringComparison.OrdinalIgnoreCase))
@@ -65,13 +80,13 @@ public class ConnectCommand : AppCommand
 
             if (clientCommand.Equals(SendCommand.CommandName))
             {
-                await SendCommand.Execute(peerClient, cancellationToken);
+                result = await SendCommand.Execute(peerClient, cancellationToken);
                 continue;
             }
 
             if (clientCommand.Equals(SendFileCommand.CommandName))
             {
-                await SendFileCommand.Execute(peerClient, cancellationToken);
+                result = await SendFileCommand.Execute(peerClient, cancellationToken);
             }
 
         }

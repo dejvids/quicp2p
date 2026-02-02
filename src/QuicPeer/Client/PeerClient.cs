@@ -1,4 +1,5 @@
-﻿using System.IO.Abstractions;
+﻿using System.Diagnostics;
+using System.IO.Abstractions;
 using System.Net;
 using System.Net.Quic;
 using System.Text;
@@ -11,16 +12,17 @@ using QuicPeer.Options;
 namespace QuicPeer.Client;
 
 public sealed class PeerClient(
+    ILogger<PeerClient> logger,
     IOptions<ClientOptions> options,
     IPEndPoint remoteEndpoint,
     IChecksumProvider checksumProvider)
     : ClientBase(options), IPeerClient
 {
+    private QuicConnection? _connection;
     private CancellationTokenSource _cts = new();
+    private readonly Stopwatch _stopwatch = new();
 
     public EndPoint? RemoteEndpoint { get; private set; }
-
-    private QuicConnection? _connection;
 
     protected override async Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct)
     {
@@ -41,6 +43,7 @@ public sealed class PeerClient(
         }
 
         var textStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, _cts.Token);
+        textStream.WriteTimeout = 100;
 
         var payload = Encoding.UTF8.GetBytes(message);
         await textStream.WriteAsync(payload);
@@ -56,25 +59,31 @@ public sealed class PeerClient(
         }
 
         var dataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, _cts.Token);
+        logger.LogDebug("Opened stream: {StreamType} with ID: {StreamId}" , dataStream.Type, dataStream.Id);
         var metadataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, _cts.Token);
+        logger.LogDebug("Opened stream: {StreamType} with ID: {StreamId}" , metadataStream.Type, metadataStream.Id);
         var checksum = checksumProvider.GetChecksum(file);
         var metadata = new FileMetadata(file.Name, file.Length, checksum, dataStream.Id);
 
-        
         try
         {
             await SendMetadata(metadata, metadataStream);
 
             await using var fileStream = file.OpenRead();
-            await fileStream.CopyToAsync(dataStream, _cts.Token);
-
+            _stopwatch.Start();
+            await fileStream.CopyToAsync(dataStream, Options.Transfer.BufferSize, _cts.Token);
+            _stopwatch.Stop();
             dataStream.CompleteWrites();
             dataStream.Close();
         }
         finally
         {
+            _stopwatch.Stop();
             await dataStream.DisposeAsync();
             await metadataStream.DisposeAsync();
+            logger.LogInformation("Upload time: {Time}", _stopwatch.Elapsed);
+            logger.LogInformation("Stream {Id} closed", dataStream.Id);
+            logger.LogInformation("Stream {Id} closed", metadataStream.Id);
         }
     }
 

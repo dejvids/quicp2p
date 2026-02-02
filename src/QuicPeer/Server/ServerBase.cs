@@ -14,19 +14,20 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {
-        Logger.LogInformation("Stopping server");
+        Logger.LogInformation("Stopping server...");
 
         return base.StopAsync(cancellationToken);
     }
 
-    protected async Task RunServerAsync()
+    protected async Task RunServerAsync(CancellationToken stoppingToken)
     {
+        Logger.LogInformation("Starting server...");
         try
         {
             EnsureProtocolSupport();
             var serverCertificate = await LoadServerCertificate(Options.ServerCertificate);
             var options = BootstrapServer(serverCertificate);
-            await RunServerInternal(options);
+            await RunServerInternal(options, stoppingToken);
         }
         catch (NotSupportedException ex)
         {
@@ -75,7 +76,6 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
             {
                 if (certificate is not null)
                 {
-                    Logger.LogInformation("Client certificate received.");
                     //Accept any certificate for poc purposes.
                     return true;
                 }
@@ -90,7 +90,7 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
             };
     }
 
-    protected abstract Task RunServerInternal(QuicListenerOptions options);
+    protected abstract Task RunServerInternal(QuicListenerOptions options, CancellationToken soppingToken);
 
     private static void EnsureProtocolSupport()
     {
