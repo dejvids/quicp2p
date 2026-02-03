@@ -12,7 +12,6 @@ using QuicPeer.Options;
 namespace QuicPeer.Client;
 
 public sealed class PeerClient(
-    ILogger<PeerClient> logger,
     IOptions<ClientOptions> options,
     IPEndPoint remoteEndpoint,
     IChecksumProvider checksumProvider)
@@ -51,17 +50,15 @@ public sealed class PeerClient(
         textStream.CompleteWrites();
     }
 
-    public async Task SendFileAsync(IFileInfo file)
+    public async Task<SendFileResult> SendFileAsync(IFileInfo file)
     {
         if (_connection is null || !file.Exists)
         {
-            return;
+            return SendFileResult.Empty;
         }
 
         var dataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, _cts.Token);
-        logger.LogDebug("Opened stream: {StreamType} with ID: {StreamId}" , dataStream.Type, dataStream.Id);
         var metadataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, _cts.Token);
-        logger.LogDebug("Opened stream: {StreamType} with ID: {StreamId}" , metadataStream.Type, metadataStream.Id);
         var checksum = checksumProvider.GetChecksum(file);
         var metadata = new FileMetadata(file.Name, file.Length, checksum, dataStream.Id);
 
@@ -81,10 +78,9 @@ public sealed class PeerClient(
             _stopwatch.Stop();
             await dataStream.DisposeAsync();
             await metadataStream.DisposeAsync();
-            logger.LogInformation("Upload time: {Time}", _stopwatch.Elapsed);
-            logger.LogInformation("Stream {Id} closed", dataStream.Id);
-            logger.LogInformation("Stream {Id} closed", metadataStream.Id);
         }
+
+        return new SendFileResult(_stopwatch.Elapsed);
     }
 
     private async Task SendMetadata(FileMetadata metadata, QuicStream metadataStream)

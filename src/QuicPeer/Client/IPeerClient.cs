@@ -8,6 +8,6 @@ public interface IPeerClient : IAsyncDisposable
     EndPoint? RemoteEndpoint { get; }
 
     Task SendAsync(string message);
-    Task SendFileAsync(IFileInfo file);
+    Task<SendFileResult> SendFileAsync(IFileInfo file);
     Task DisconnectAsync();
 }

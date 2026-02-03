@@ -1,5 +1,4 @@
-﻿using QuicPeer.Client;
-using QuicPeer.Server;
+﻿using QuicPeer.Server;
 using Serilog;
 using Serilog.Formatting.Json;
 
@@ -12,7 +11,6 @@ internal static class LoggingExtensions
     internal static IServiceCollection AddSerilogLogging(this IServiceCollection services)
     {
         var serverNamespace = typeof(PeerServer).Namespace;
-        var clientNamespace = typeof(PeerClient).Namespace;
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
             .MinimumLevel.Debug()
@@ -20,18 +18,13 @@ internal static class LoggingExtensions
 
             //General log
             .WriteTo.Logger(cfg => cfg
-                .Filter.ByExcluding($"StartsWith(SourceContext, '{serverNamespace}') or StartsWith(SourceContext, '{clientNamespace}')")
+                .Filter.ByExcluding($"StartsWith(SourceContext, '{serverNamespace}')")
                 .WriteTo.File("logs\\system.log",  fileSizeLimitBytes: FileSizeLimitBytes))
 
             //Server log
             .WriteTo.Logger(cfg => cfg
                 .Filter.ByIncludingOnly($"StartsWith(SourceContext, '{serverNamespace}')")
                 .WriteTo.File(new JsonFormatter(), "logs\\server.log", fileSizeLimitBytes: FileSizeLimitBytes))
-
-            //Client log
-            .WriteTo.Logger(cfg => cfg
-                .Filter.ByIncludingOnly($"StartsWith(SourceContext, '{clientNamespace}')")
-                .WriteTo.File(new JsonFormatter(),"logs\\client.log", fileSizeLimitBytes: FileSizeLimitBytes))
 
             .CreateLogger();
 

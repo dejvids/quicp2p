@@ -27,10 +27,10 @@ public sealed class PeerServer(
                 Logger.LogInformation("Server stopped");
                 return;
             }
-            catch (Exception ex) when(++restarts < 5)
+            catch (Exception ex) when(++restarts < Options.RestartAttempts)
             {
                 Logger.LogCritical(ex, "Server Error. Restarting server.");
-                await Task.Delay(TimeSpan.FromSeconds(5), cts.Token);
+                await Task.Delay(TimeSpan.FromSeconds(Options.RestartInterval), cts.Token);
             }
         }
     }

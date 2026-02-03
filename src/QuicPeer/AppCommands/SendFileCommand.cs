@@ -22,11 +22,12 @@ public class SendFileCommand : AppCommand<IPeerClient>
         try
         {
             var fileToSend = await GetFileAsync(cancellationToken);
-            await Console.Status()
+            var resul = await Console.Status()
                 .Spinner(Spinner.Known.Line)
                 .StartAsync("Sending...", async _ => await peerClient.SendFileAsync(fileToSend));
 
             Console.MarkupLine("[green]:check_mark: File sent successfully. [/]");
+            Logger.LogInformation("File {FileName} sent successfully in {Time}", fileToSend.FullName, resul.ElapsedTime);
 
         }
         catch (QuicException ex) when (ex.IsConnectionError())
