@@ -7,56 +7,66 @@ namespace QuicPeer.Server;
 public sealed class PeerServer(
     IOptions<ServerOptions> configuration,
     ILogger<PeerServer> logger,
-    ConnectionManager connectionManager)
-    : ServerBase(configuration, logger), IAsyncDisposable
+    IServiceScopeFactory scopeFactory,
+    IHostApplicationLifetime appLifetime)
+    : ServerBase(configuration, logger)
 {
-    private QuicListener? _listener;
-    private Task? _newConnectionsHandler;
-    private CancellationTokenSource? _cancellationTokenSource;
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        try
+        using var cts =
+            CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, appLifetime.ApplicationStopping);
+        var restarts = 0;
+        while (!cts.Token.IsCancellationRequested)
         {
-            _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-            await RunServerAsync();
-
-            var tcs = new TaskCompletionSource();
-            await using var _ = stoppingToken.Register(() => tcs.SetResult());
-            await tcs.Task;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogCritical(ex, "Server failed");
+            try
+            {
+                await RunServerAsync(cts.Token);
+            }
+            catch (OperationCanceledException ex)
+            {
+                Logger.LogInformation(ex, "Server stopped.");
+                return;
+            }
+            catch (Exception ex) when(++restarts < Options.RestartAttempts)
+            {
+                Logger.LogCritical(ex, "Server Error. Restarting server.");
+                await Task.Delay(TimeSpan.FromSeconds(Options.RestartInterval), cts.Token);
+            }
         }
     }
 
-    protected override async Task RunServerInternal(QuicListenerOptions options)
+    protected override async Task RunServerInternal(QuicListenerOptions options, CancellationToken stoppingToken)
     {
-        _listener = await QuicListener.ListenAsync(options);
-        _newConnectionsHandler = Task.Factory.StartNew(
-            async () => await ListenAsync(_listener, _cancellationTokenSource!.Token),
-            TaskCreationOptions.LongRunning);
-
-        Logger.LogInformation("Listening on {Endpoint}", _listener.LocalEndPoint);
+        var listener = await QuicListener.ListenAsync(options, stoppingToken);
+        await ListenAsync(listener, stoppingToken);
     }
 
     private async Task ListenAsync(QuicListener listener, CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        Logger.LogInformation("Listening on {Endpoint}", listener.LocalEndPoint);
+        try
         {
-            var newConnection = await listener.AcceptConnectionAsync(ct);
+            while (!ct.IsCancellationRequested)
+            {
+                var newConnection = await listener.AcceptConnectionAsync(ct);
 
-            _ = OnPeerConnected(newConnection, ct);
+                _ = OnPeerConnected(newConnection, ct);
+            }
+        }
+        finally
+        {
+            await listener.DisposeAsync();
         }
     }
 
     private Task OnPeerConnected(QuicConnection newConnection, CancellationToken ct)
     {
-        var context = ConnectionContext.Create(newConnection);
-        Logger.LogInformation("New connection from {RemoteEndpoint}", context.RemoteEndPoint);
         return Task.Run(async () =>
         {
+            var context = ConnectionContext.Create(newConnection);
+            Logger.LogInformation("New connection from {RemoteEndpoint}", context.RemoteEndPoint);
+            var scope = scopeFactory.CreateAsyncScope();
+            var connectionManager = scope.ServiceProvider.GetRequiredService<ConnectionManager>();
             try
             {
                 await connectionManager.Process(context, ct);
@@ -77,37 +87,8 @@ public sealed class PeerServer(
             finally
             {
                 await context.DisposeAsync();
+                await scope.DisposeAsync();
             }
         }, ct);
-    }
-    
-    public override async Task StopAsync(CancellationToken cancellationToken)
-    {
-        await base.StopAsync(cancellationToken);
-        _cancellationTokenSource?.CancelAsync();
-        if (_newConnectionsHandler is not null)
-        {
-            try
-            {
-                await _newConnectionsHandler;
-            }
-            catch (OperationCanceledException)
-            {
-                Logger.LogInformation("Accepting new connections cancelled.");
-            }
-        }
-
-        Logger.LogWarning("Server stopped");
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_listener is null)
-        {
-            return;
-        }
-
-        await _listener.DisposeAsync();
-        _cancellationTokenSource?.Dispose();
     }
 }

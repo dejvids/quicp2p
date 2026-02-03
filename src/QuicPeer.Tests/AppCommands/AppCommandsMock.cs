@@ -48,9 +48,9 @@ public static class AppCommandsMock
         {
         }
 
-        public override ValueTask Execute(CancellationToken cancellationToken)
+        public override ValueTask<CommandResult> Execute(CancellationToken cancellationToken)
         {
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(CommandResult.Success);
         }
     }
 
@@ -61,9 +61,9 @@ public static class AppCommandsMock
         {
         }
 
-        public override ValueTask Execute(CancellationToken cancellationToken)
+        public override ValueTask<CommandResult> Execute(CancellationToken cancellationToken)
         {
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(CommandResult.Success);
         }
     }
 

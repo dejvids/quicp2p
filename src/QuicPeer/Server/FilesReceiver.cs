@@ -96,6 +96,7 @@ public class FilesReceiver : IFilesReceiver
     private async Task<IFileInfo> CopyToFile(Stream sourceStream, CancellationToken ct)
     {
         var filePath = _fileSystem.Path.Combine(_options.DownloadsDirectory, _fileSystem.Path.GetRandomFileName());
+        filePath = _fileSystem.Path.ChangeExtension(filePath, "download");
         var fileInfo = _fileSystem.FileInfo.New(filePath);
         _fileSystem.Directory.CreateDirectory(_options.DownloadsDirectory);
         var fileStream = fileInfo.Create();

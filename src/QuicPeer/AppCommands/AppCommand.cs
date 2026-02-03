@@ -16,7 +16,7 @@ public abstract class AppCommand
         ConsoleAccessor = consoleAccessor;
     }
 
-    public abstract ValueTask Execute(CancellationToken cancellationToken);
+    public abstract ValueTask<CommandResult> Execute(CancellationToken cancellationToken);
 }
 
 public abstract class AppCommand<T> : AppCommand
@@ -26,10 +26,10 @@ public abstract class AppCommand<T> : AppCommand
     {
     }
 
-    public abstract ValueTask Execute(T param, CancellationToken cancellationToken);
+    public abstract ValueTask<CommandResult> Execute(T param, CancellationToken cancellationToken);
 
-    public override ValueTask Execute(CancellationToken cancellationToken)
+    public override ValueTask<CommandResult> Execute(CancellationToken cancellationToken)
     {
-        return ValueTask.CompletedTask;
+        return ValueTask.FromResult(CommandResult.Success);
     }
 }

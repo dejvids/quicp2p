@@ -15,30 +15,34 @@ public class ConsoleApp : IHostedService
     private readonly IConsoleAccessor _consoleAccessor;
     private readonly Dictionary<string, AppCommand> _appCommands;
     private readonly ConcurrentQueue<MessageCommand> _messages = new();
+    private readonly IHostApplicationLifetime _appLifetime;
 
+    public Task AppRunner {get; private set;} = Task.CompletedTask;
     static ConsoleApp()
     {
         Console.OutputEncoding = Encoding.UTF8;
         Console.InputEncoding = Encoding.UTF8;
     }
-    
+
     public ConsoleApp(ILogger<ConsoleApp> logger,
-       IConsoleAccessor consoleAccessor,
+        IConsoleAccessor consoleAccessor,
         IMessageQueue<IServerCommand> serverMessageQueue,
         ConnectCommand connectCommand,
-        ShowDataCommand showDataCommand)
+        ShowDataCommand showDataCommand,
+        IHostApplicationLifetime appLifetime)
     {
         _logger = logger;
         _consoleAccessor = consoleAccessor;
         _console = consoleAccessor.Console;
         _serverMessageQueue = serverMessageQueue;
+        _appLifetime = appLifetime;
 
         AppCommand[] commands = [connectCommand, showDataCommand];
 
         _appCommands = commands.ToDictionary(c => c.CommandName);
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Console app started.");
 
@@ -48,37 +52,47 @@ public class ConsoleApp : IHostedService
         };
 
         var mainMenu = _consoleAccessor.SelectionPrompt(menuOptions);
-        _ = Task.Factory.StartNew(async () => await ReadServerCommands(cancellationToken), TaskCreationOptions.LongRunning);
+        _ = Task.Factory.StartNew(async () => await ReadServerCommands(cancellationToken), cancellationToken,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
         try
         {
-            await ShowMenu(mainMenu, cancellationToken);
+            AppRunner = Task.Factory.StartNew(async () => await ShowMenu(mainMenu, cancellationToken),
+                TaskCreationOptions.LongRunning);
         }
         catch (Exception ex)
         {
             _console.MarkupLine("Console app has been stopped due to unexpected error.");
             _logger.LogCritical(ex, "Critical error in console app.");
         }
+        
+        return Task.CompletedTask;
     }
 
     private async Task ShowMenu(IPrompt<string> mainMenu, CancellationToken cancellationToken)
     {
+        CommandResult? result = null;
         while (!cancellationToken.IsCancellationRequested)
         {
+            if (result?.Exit is true)
+            {
+                return;
+            }
+
             var userCommand = await mainMenu.ShowAsync(_console, CancellationToken.None);
 
             if (userCommand.Equals(ExitCommand, StringComparison.OrdinalIgnoreCase))
             {
                 if (await _consoleAccessor.ConfirmAsync("Do you want to close the app?", true, cancellationToken))
                 {
-                    await StopAsync(cancellationToken);
+                    _appLifetime.StopApplication();
                     break;
                 }
 
                 continue;
             }
 
-            if(!_appCommands.TryGetValue(userCommand, out var appCommand))
+            if (!_appCommands.TryGetValue(userCommand, out var appCommand))
             {
                 continue;
             }
@@ -89,7 +103,7 @@ public class ConsoleApp : IHostedService
                 continue;
             }
 
-            await appCommand.Execute(cancellationToken);
+            result = await appCommand.Execute(cancellationToken);
         }
     }
 

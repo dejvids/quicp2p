@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using QuicPeer.Server.Commands;
@@ -27,10 +28,10 @@ public sealed class ConsoleAppTests : IDisposable
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
             Substitute.For<IMessageQueue<IServerCommand>>(),
             ConnectCommand,
-            ShowDataCommand);
+            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
 
-        await consoleApp.StartAsync(_cts.Token);
-
+        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.AppRunner;
         Assert.Equal(Encoding.UTF8, Console.OutputEncoding);
         Assert.Equal(Encoding.UTF8, Console.InputEncoding);
     }
@@ -41,10 +42,10 @@ public sealed class ConsoleAppTests : IDisposable
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
            Substitute.For<IMessageQueue<IServerCommand>>(),
            ConnectCommand,
-           ShowDataCommand);
+           ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
 
-        await consoleApp.StartAsync(_cts.Token);
-
+        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.AppRunner;
         _consoleAccessor.Received(1).SelectionPrompt(
             Arg.Is<IList<string>>(o => 
                 o.Contains("Connect") && o.Contains("Data") && o.Contains("Exit")));
@@ -69,10 +70,10 @@ public sealed class ConsoleAppTests : IDisposable
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
             serverMessageQueue,
             ConnectCommand,
-            ShowDataCommand);
+            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
         
-        await consoleApp.StartAsync(cts.Token);
-
+        _ = consoleApp.StartAsync(cts.Token);
+        await consoleApp.AppRunner;
         serverMessageQueue.Received().DequeueAllAsync(Arg.Any<CancellationToken>());
 
         Assert.Equal(2, receivedMessages);
@@ -87,10 +88,11 @@ public sealed class ConsoleAppTests : IDisposable
             _consoleAccessor,
             Substitute.For<IMessageQueue<IServerCommand>>(),
             ConnectCommand,
-            ShowDataCommand);
+            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
 
-        await consoleApp.StartAsync(_cts.Token);
-
+        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.AppRunner;
+        
         await _menuPrompt.Received(1).ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>());
         await _consoleAccessor.Received(1).ConfirmAsync(Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
@@ -103,10 +105,11 @@ public sealed class ConsoleAppTests : IDisposable
             _consoleAccessor,
             Substitute.For<IMessageQueue<IServerCommand>>(),
             ConnectCommand,
-            ShowDataCommand);
+            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
 
-        await consoleApp.StartAsync(_cts.Token);
-
+        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.AppRunner;
+        
         await ConnectCommand.Received().Execute(Arg.Any<CancellationToken>());
     }
 
@@ -118,14 +121,14 @@ public sealed class ConsoleAppTests : IDisposable
             _consoleAccessor,
             Substitute.For<IMessageQueue<IServerCommand>>(),
             ConnectCommand,
-            ShowDataCommand);
+            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
 
-        await consoleApp.StartAsync(_cts.Token);
-
+        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.AppRunner;
+        
         await ShowDataCommand.Received().Execute(Arg.Any<IEnumerable<MessageCommand>>(), Arg.Any<CancellationToken>());
     }
-
-
+    
     public void Dispose()
     {
         _cts.Dispose();
