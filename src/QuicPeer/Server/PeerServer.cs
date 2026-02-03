@@ -22,9 +22,9 @@ public sealed class PeerServer(
             {
                 await RunServerAsync(cts.Token);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
-                Logger.LogInformation("Server stopped");
+                Logger.LogInformation(ex, "Server stopped.");
                 return;
             }
             catch (Exception ex) when(++restarts < Options.RestartAttempts)

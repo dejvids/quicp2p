@@ -57,7 +57,6 @@ public class ConsoleApp : IHostedService
 
         try
         {
-            // await ShowMenu(mainMenu, cancellationToken);
             AppRunner = Task.Factory.StartNew(async () => await ShowMenu(mainMenu, cancellationToken),
                 TaskCreationOptions.LongRunning);
         }
@@ -87,7 +86,6 @@ public class ConsoleApp : IHostedService
                 if (await _consoleAccessor.ConfirmAsync("Do you want to close the app?", true, cancellationToken))
                 {
                     _appLifetime.StopApplication();
-                    //await StopAsync(cancellationToken);
                     break;
                 }
 

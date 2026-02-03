@@ -90,7 +90,7 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
             };
     }
 
-    protected abstract Task RunServerInternal(QuicListenerOptions options, CancellationToken soppingToken);
+    protected abstract Task RunServerInternal(QuicListenerOptions options, CancellationToken stoppingToken);
 
     private static void EnsureProtocolSupport()
     {
