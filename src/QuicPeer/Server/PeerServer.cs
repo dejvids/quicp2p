@@ -8,8 +8,9 @@ public sealed class PeerServer(
     IOptions<ServerOptions> configuration,
     ILogger<PeerServer> logger,
     IServiceScopeFactory scopeFactory,
-    IHostApplicationLifetime appLifetime)
-    : ServerBase(configuration, logger)
+    IHostApplicationLifetime appLifetime,
+    CertificateValidator certificateValidator)
+    : ServerBase(configuration, logger, certificateValidator)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -48,9 +49,16 @@ public sealed class PeerServer(
         {
             while (!ct.IsCancellationRequested)
             {
-                var newConnection = await listener.AcceptConnectionAsync(ct);
-
-                _ = OnPeerConnected(newConnection, ct);
+                try
+                {
+                    var newConnection = await listener.AcceptConnectionAsync(ct);
+                    _ = OnPeerConnected(newConnection, ct);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Connection from peer could not be established.");
+                }
+               
             }
         }
         finally

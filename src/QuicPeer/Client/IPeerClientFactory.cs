@@ -4,5 +4,5 @@ namespace QuicPeer.Client;
 
 public interface IPeerClientFactory
 {
-    PeerClient CreatePeerClient(IPEndPoint remoteEndpoint);
+    IPeerClient CreatePeerClient(IPEndPoint remoteEndpoint);
 }

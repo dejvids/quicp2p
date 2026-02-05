@@ -36,7 +36,7 @@ public class ConnectionContext : IAsyncDisposable
 
     public async IAsyncEnumerable<QuicStream> AcceptIncomingStreams([EnumeratorCancellation] CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        while (!_disposed && !ct.IsCancellationRequested)
         {
             yield return await _connection.AcceptInboundStreamAsync(ct);
         }

@@ -7,10 +7,11 @@ using QuicPeer.Options;
 
 namespace QuicPeer.Server;
 
-public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger logger) : BackgroundService
+public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger logger, CertificateValidator certificateValidator) : BackgroundService
 {
     protected ILogger Logger { get; } = logger;
     protected ServerOptions Options { get; } = serverOptions.Value;
+    private readonly CertificateValidator _certificateValidator = certificateValidator;
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {
@@ -76,8 +77,7 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
             {
                 if (certificate is not null)
                 {
-                    //Accept any certificate for poc purposes.
-                    return true;
+                    return _certificateValidator.IsTrusted(certificate);
                 }
 
                 if (sslPolicyErrors != SslPolicyErrors.None)

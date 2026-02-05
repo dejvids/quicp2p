@@ -17,6 +17,7 @@ public sealed class PeerClient(
     IChecksumProvider checksumProvider)
     : ClientBase(options), IPeerClient
 {
+    private bool _disposed;
     private QuicConnection? _connection;
     private CancellationTokenSource _cts = new();
     private readonly Stopwatch _stopwatch = new();
@@ -30,8 +31,9 @@ public sealed class PeerClient(
         options.ClientAuthenticationOptions.TargetHost = remoteEndpoint.Address.ToString();
 
         var connection = await QuicConnection.ConnectAsync(options, ct);
+        await TestConnection(connection, ct);
         _connection = connection;
-        RemoteEndpoint = connection.RemoteEndPoint;
+        RemoteEndpoint = _connection.RemoteEndPoint;
     }
 
     public async Task SendAsync(string message)
@@ -112,14 +114,28 @@ public sealed class PeerClient(
         if (_connection is not null)
         {
             await _connection.CloseAsync(ControlCodes.ClientDisconnected);
-            await _connection.DisposeAsync();
         }
     }
 
-    public ValueTask DisposeAsync()
+    private async Task TestConnection(QuicConnection connection, CancellationToken ct)
     {
+        await Task.Delay(Options.TlsHandshakeDelay, ct);
+        await using var controlStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct);
+        await controlStream.WriteAsync(Memory<byte>.Empty, ct);
+        controlStream.CompleteWrites();
+    }
+    
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
         _cts.Dispose();
-
-        return ValueTask.CompletedTask;
+        if (_connection is not null)
+        {
+            await _connection.DisposeAsync();
+        }
     }
 }

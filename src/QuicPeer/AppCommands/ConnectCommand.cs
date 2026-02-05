@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Security.Authentication;
+using System.Text;
 using QuicPeer.Client;
 using QuicPeer.Client.Exceptions;
 using Spectre.Console;
@@ -17,10 +18,10 @@ public class ConnectCommand : AppCommand
     private readonly List<string> _subMenuOptions;
 
     public ConnectCommand(ILogger<ConnectCommand> logger,
-                          IConsoleAccessor consoleAccessor,
-                          PeerConnector peerConnector,
-                          SendCommand sendCommand,
-                          SendFileCommand sendFileCommand) : base(logger, consoleAccessor)
+        IConsoleAccessor consoleAccessor,
+        PeerConnector peerConnector,
+        SendCommand sendCommand,
+        SendFileCommand sendFileCommand) : base(logger, consoleAccessor)
     {
         _peerConnector = peerConnector;
         SendCommand = sendCommand;
@@ -48,7 +49,11 @@ public class ConnectCommand : AppCommand
         {
             return CommandResult.Fail;
         }
-        
+        finally
+        {
+            await peerClient.DisposeAsync();
+        }
+
         return CommandResult.Success;
     }
 
@@ -62,12 +67,12 @@ public class ConnectCommand : AppCommand
             {
                 return;
             }
-            
+
             var clientCommand = await Console.PromptAsync(subMenu, cancellationToken);
 
             if (clientCommand.Equals(DisconnectCommand, StringComparison.OrdinalIgnoreCase))
             {
-                if (! await ConsoleAccessor.ConfirmAsync("Are you sure?", true, cancellationToken))
+                if (!await ConsoleAccessor.ConfirmAsync("Are you sure?", true, cancellationToken))
                 {
                     Console.Clear();
                     continue;
@@ -88,7 +93,6 @@ public class ConnectCommand : AppCommand
             {
                 result = await SendFileCommand.Execute(peerClient, cancellationToken);
             }
-
         }
     }
 
@@ -96,9 +100,10 @@ public class ConnectCommand : AppCommand
     {
         while (true)
         {
-            var textPrompt = ConsoleAccessor.TextPrompt<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):");
+            var textPrompt =
+                ConsoleAccessor.TextPrompt<string>("Enter the [green]endpoint[/] (IP:Port or Hostname:Port):");
             var endpoint = await Console.PromptAsync(textPrompt, cancellationToken);
-            var peerClient = await ConsoleAccessor.SpinnerAsync("Connecting...", 
+            var peerClient = await ConsoleAccessor.SpinnerAsync("Connecting...",
                 Connect(endpoint, cancellationToken), cancellationToken);
 
             if (peerClient is null)
@@ -122,19 +127,23 @@ public class ConnectCommand : AppCommand
         try
         {
             return await _peerConnector.Connect(endpoint, cancellationToken);
-
         }
-        catch (EndpointParsingException)
+        catch (EndpointParsingException ex)
         {
             Console.MarkupLine("[red]Invalid endpoint format.[/] Please use IP:Port or Hostname:Port.");
-            return null;
+            Logger.LogError(ex, "Could not parse endpoint.");
+        }
+        catch (AuthenticationException e)
+        {
+            Console.MarkupLine("[red]Authentication failed.[/]");
+            Logger.LogError(e, "Authentication failed.");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Connection failed");
-
             Console.MarkupLine("[red]Couldn't connect to[/] [yellow]{0}[/]", endpoint);
-            return null;
+            Logger.LogError(ex, "Connection failed");
         }
+
+        return null;
     }
 }

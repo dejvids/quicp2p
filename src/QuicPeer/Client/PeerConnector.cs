@@ -2,17 +2,15 @@
 
 public class PeerConnector(IPeerClientFactory clientFactory)
 {
-    const int DefaultPort = 501;
-    private readonly IPeerClientFactory _clientFactory = clientFactory;
+    private const int DefaultPort = 501;
 
-    public virtual async Task<IPeerClient?> Connect(string endpoint, CancellationToken cancellationToken)
+    public async Task<IPeerClient?> Connect(string endpoint, CancellationToken cancellationToken)
     {
         var remoteEndpoint = EndpointParser.Parse(endpoint, DefaultPort);
-
-        var client = _clientFactory.CreatePeerClient(remoteEndpoint);
-
+        var client = clientFactory.CreatePeerClient(remoteEndpoint);
+        
         await client.RunClientAsync(cancellationToken);
-
+        
         return client;
     }
 }
