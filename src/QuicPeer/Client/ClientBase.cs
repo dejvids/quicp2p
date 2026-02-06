@@ -33,7 +33,7 @@ public abstract class ClientBase
         {
             DefaultStreamErrorCode = Options.DefaultStreamErrorCode,
             DefaultCloseErrorCode = Options.DefaultCloseErrorCode,
-            ClientAuthenticationOptions = new()
+            ClientAuthenticationOptions = new SslClientAuthenticationOptions
             {
                 ApplicationProtocols = [Options.ClientCertificate.ApplicationProtocol],
                 RemoteCertificateValidationCallback = ValidateServerCertificate,
@@ -54,9 +54,7 @@ public abstract class ClientBase
         return X509CertificateLoader.LoadPkcs12FromFile(certPath, string.Empty);
     }
 
-    static bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,
-        SslPolicyErrors sslPolicyErrors)
-    {
-        return true; // For poc purposes, accept the certificate anyway.
-    }
+    private static bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,
+        SslPolicyErrors sslPolicyErrors) =>
+        sslPolicyErrors == SslPolicyErrors.None;
 }

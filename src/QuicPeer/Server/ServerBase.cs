@@ -7,7 +7,10 @@ using QuicPeer.Options;
 
 namespace QuicPeer.Server;
 
-public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger logger, CertificateValidator certificateValidator) : BackgroundService
+public abstract class ServerBase(
+    IOptions<ServerOptions> serverOptions,
+    ILogger logger,
+    CertificateValidator certificateValidator) : BackgroundService
 {
     protected ILogger Logger { get; } = logger;
     protected ServerOptions Options { get; } = serverOptions.Value;
@@ -74,20 +77,8 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
         connectionOptions.ServerAuthenticationOptions.ClientCertificateRequired = true;
         connectionOptions.ServerAuthenticationOptions.RemoteCertificateValidationCallback =
             (_, certificate, _, sslPolicyErrors) =>
-            {
-                if (certificate is not null)
-                {
-                    return _certificateValidator.IsTrusted(certificate);
-                }
-
-                if (sslPolicyErrors != SslPolicyErrors.None)
-                {
-                    Logger.LogError("SSL Policy Errors: {Errors}", sslPolicyErrors);
-                    return false;
-                }
-
-                return true;
-            };
+                sslPolicyErrors == SslPolicyErrors.None && certificate is not null &&
+                _certificateValidator.IsTrusted(certificate);
     }
 
     protected abstract Task RunServerInternal(QuicListenerOptions options, CancellationToken stoppingToken);

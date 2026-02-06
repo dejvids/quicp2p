@@ -31,7 +31,7 @@ public sealed class PeerClient(
         options.ClientAuthenticationOptions.TargetHost = remoteEndpoint.Address.ToString();
 
         var connection = await QuicConnection.ConnectAsync(options, ct);
-        await TestConnection(connection, ct);
+        await ProbeConnection(connection, ct);
         _connection = connection;
         RemoteEndpoint = _connection.RemoteEndPoint;
     }
@@ -117,12 +117,12 @@ public sealed class PeerClient(
         }
     }
 
-    private async Task TestConnection(QuicConnection connection, CancellationToken ct)
+    private async Task ProbeConnection(QuicConnection connection, CancellationToken ct)
     {
         await Task.Delay(Options.TlsHandshakeDelay, ct);
-        await using var controlStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct);
-        await controlStream.WriteAsync(Memory<byte>.Empty, ct);
-        controlStream.CompleteWrites();
+        await using var probeStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct);
+        await probeStream.WriteAsync(Memory<byte>.Empty, ct);
+        probeStream.CompleteWrites();
     }
     
     public async ValueTask DisposeAsync()
