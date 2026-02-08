@@ -2,6 +2,8 @@
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
+using QuicPeer.Common;
+using QuicPeer.Common.ValueObjects;
 using QuicPeer.Options;
 
 namespace QuicPeer.Client;
@@ -54,7 +56,9 @@ public abstract class ClientBase
         return X509CertificateLoader.LoadPkcs12FromFile(certPath, string.Empty);
     }
 
-    private static bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,
+    private bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,
         SslPolicyErrors sslPolicyErrors) =>
-        sslPolicyErrors == SslPolicyErrors.None;
+        certificate is not null &&
+        new Certificate(certificate).IsNotExpired() &&
+        (!Options.ValidateFullChain || sslPolicyErrors == SslPolicyErrors.None);
 }

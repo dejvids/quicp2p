@@ -9,8 +9,8 @@ public sealed class PeerServer(
     ILogger<PeerServer> logger,
     IServiceScopeFactory scopeFactory,
     IHostApplicationLifetime appLifetime,
-    CertificateValidator certificateValidator)
-    : ServerBase(configuration, logger, certificateValidator)
+    IPeersStore peersStore)
+    : ServerBase(configuration, logger, peersStore)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

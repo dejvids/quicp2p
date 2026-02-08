@@ -10,5 +10,5 @@ public class ClientOptions : PeerConnectionOptions
     /// Delay in ms to wait until server finish TLS handshake.
     /// It is needed to detect rejected connection on client's side.
     /// </summary>
-    public int TlsHandshakeDelay { get; set; } = 10;
+    public int TlsHandshakeDelay { get; set; } = 100;
 }

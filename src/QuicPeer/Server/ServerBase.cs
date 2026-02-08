@@ -3,6 +3,7 @@ using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
+using QuicPeer.Common.ValueObjects;
 using QuicPeer.Options;
 
 namespace QuicPeer.Server;
@@ -10,11 +11,10 @@ namespace QuicPeer.Server;
 public abstract class ServerBase(
     IOptions<ServerOptions> serverOptions,
     ILogger logger,
-    CertificateValidator certificateValidator) : BackgroundService
+    IPeersStore peersStore) : BackgroundService
 {
     protected ILogger Logger { get; } = logger;
     protected ServerOptions Options { get; } = serverOptions.Value;
-    private readonly CertificateValidator _certificateValidator = certificateValidator;
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {
@@ -77,8 +77,22 @@ public abstract class ServerBase(
         connectionOptions.ServerAuthenticationOptions.ClientCertificateRequired = true;
         connectionOptions.ServerAuthenticationOptions.RemoteCertificateValidationCallback =
             (_, certificate, _, sslPolicyErrors) =>
-                sslPolicyErrors == SslPolicyErrors.None && certificate is not null &&
-                _certificateValidator.IsTrusted(certificate);
+            {
+                if (!Options.RequireClientCertificate)
+                {
+                    return true;
+                }
+
+                if (certificate is null)
+                {
+                    return false;
+                }
+
+                var remoteCertificate = new Certificate(certificate);
+
+                return peersStore.Contains(remoteCertificate) && remoteCertificate.IsNotExpired() &&
+                       (!Options.ValidateFullChain || sslPolicyErrors == SslPolicyErrors.None);
+            };
     }
 
     protected abstract Task RunServerInternal(QuicListenerOptions options, CancellationToken stoppingToken);
