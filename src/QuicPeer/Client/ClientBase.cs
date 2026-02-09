@@ -2,7 +2,7 @@
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
-using QuicPeer.Common.ValueObjects;
+using QuicPeer.Common;
 using QuicPeer.Options;
 
 namespace QuicPeer.Client;

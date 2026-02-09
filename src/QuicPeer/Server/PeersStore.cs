@@ -2,14 +2,14 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
-using QuicPeer.Common.ValueObjects;
+using QuicPeer.Common;
 using QuicPeer.Options;
 
 namespace QuicPeer.Server;
 
 public class PeersStore : IPeersStore
 {
-    private class TrustedPeer(string name, byte[] certFingerprint)
+    private sealed class TrustedPeer(string name, byte[] certFingerprint)
     {
         public string Name { get; } = name;
         public byte[] CertFingerprint { get; } = certFingerprint;
