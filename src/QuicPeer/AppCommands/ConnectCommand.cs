@@ -1,6 +1,6 @@
 ﻿using System.Security.Authentication;
 using System.Text;
-using QuicPeer.Client;
+using QuicPeer.Client.Abstraction;
 using QuicPeer.Client.Exceptions;
 using Spectre.Console;
 
@@ -9,7 +9,7 @@ namespace QuicPeer.AppCommands;
 public class ConnectCommand : AppCommand
 {
     private const string DisconnectCommand = "Disconnect";
-    private readonly PeerConnector _peerConnector;
+    private readonly IPeerConnector _peerConnector;
 
     public override string CommandName => "Connect";
     private SendCommand SendCommand { get; }
@@ -19,7 +19,7 @@ public class ConnectCommand : AppCommand
 
     public ConnectCommand(ILogger<ConnectCommand> logger,
         IConsoleAccessor consoleAccessor,
-        PeerConnector peerConnector,
+        IPeerConnector peerConnector,
         SendCommand sendCommand,
         SendFileCommand sendFileCommand) : base(logger, consoleAccessor)
     {

@@ -2,6 +2,7 @@
 using QuicPeer;
 using QuicPeer.AppCommands;
 using QuicPeer.Client;
+using QuicPeer.Client.Abstraction;
 using QuicPeer.Logging;
 using QuicPeer.Options;
 using QuicPeer.Server;
@@ -12,7 +13,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSerilogLogging();
 builder.Services.AddHostedService<PeerServer>();
 builder.Services.AddHostedService<ConsoleApp>();
-builder.Services.AddScoped<PeerConnector>();
+builder.Services.AddScoped<IPeerConnector, PeerConnector>();
 builder.Services.AddSingleton<IPeerClientFactory, PeerClientFactory>();
 builder.Services.AddAppCommands();
 builder.Services.AddSingleton<IConsoleAccessor, ConsoleAccessor>();

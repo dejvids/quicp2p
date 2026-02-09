@@ -1,6 +1,8 @@
-﻿namespace QuicPeer.Client;
+﻿using QuicPeer.Client.Abstraction;
 
-public class PeerConnector(IPeerClientFactory clientFactory)
+namespace QuicPeer.Client;
+
+public class PeerConnector(IPeerClientFactory clientFactory) : IPeerConnector
 {
     private const int DefaultPort = 501;
 

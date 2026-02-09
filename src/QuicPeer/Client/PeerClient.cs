@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Quic;
 using System.Text;
 using Microsoft.Extensions.Options;
+using QuicPeer.Client.Abstraction;
 using QuicPeer.Client.Exceptions;
 using QuicPeer.Common;
 using QuicPeer.Common.Dto;

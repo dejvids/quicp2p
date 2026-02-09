@@ -1,5 +1,5 @@
 ﻿using System.Net.Quic;
-using QuicPeer.Client;
+using QuicPeer.Client.Abstraction;
 using QuicPeer.Common.Exceptions;
 using Spectre.Console;
 

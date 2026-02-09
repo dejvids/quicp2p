@@ -1,7 +1,7 @@
 ﻿using System.IO.Abstractions;
 using System.Net;
 
-namespace QuicPeer.Client;
+namespace QuicPeer.Client.Abstraction;
 
 public interface IPeerClient : IAsyncDisposable
 {
