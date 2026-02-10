@@ -90,7 +90,8 @@ public abstract class ServerBase(
 
                 var remoteCertificate = new Certificate(certificate);
 
-                return peersStore.Contains(remoteCertificate) && remoteCertificate.IsNotExpired() &&
+                return peersStore.Contains(remoteCertificate) && 
+                       !remoteCertificate.IsExpired(TimeProvider.System) &&
                        (!Options.ValidateFullChain || sslPolicyErrors == SslPolicyErrors.None);
             };
     }

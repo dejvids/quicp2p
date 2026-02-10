@@ -13,10 +13,10 @@ public class Certificate
         Value = value;
     }
 
-    public bool IsNotExpired() =>
-        !DateTime.TryParse(Value.GetExpirationDateString(), CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal, out var expirationDate) ||
-        expirationDate > DateTime.UtcNow;
+    public bool IsExpired(TimeProvider timeProvider) =>
+        DateTime.TryParse(Value.GetExpirationDateString(), CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var expirationDate) &&
+        timeProvider.GetUtcNow() > expirationDate;
 
     public byte[] GetFingerprint() =>
         Value.GetCertHash(HashAlgorithmName.SHA256);
