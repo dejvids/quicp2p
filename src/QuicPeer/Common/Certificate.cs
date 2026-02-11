@@ -4,8 +4,9 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace QuicPeer.Common;
 
-public class Certificate
+public sealed class Certificate : IDisposable
 {
+    private bool _disposed;
     private X509Certificate Value { get; }
 
     public Certificate(X509Certificate value)
@@ -20,4 +21,21 @@ public class Certificate
 
     public byte[] GetFingerprint() =>
         Value.GetCertHash(HashAlgorithmName.SHA256);
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        
+        _disposed = true;
+        Value.Dispose();
+        GC.SuppressFinalize(this);
+    }
+    
+    ~Certificate()
+    {
+        Dispose();
+    }
 }
