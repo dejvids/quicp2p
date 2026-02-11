@@ -3,11 +3,15 @@ using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
+using QuicPeer.Common;
 using QuicPeer.Options;
 
 namespace QuicPeer.Server;
 
-public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger logger) : BackgroundService
+public abstract class ServerBase(
+    IOptions<ServerOptions> serverOptions,
+    ILogger logger,
+    IPeersStore peersStore) : BackgroundService
 {
     protected ILogger Logger { get; } = logger;
     protected ServerOptions Options { get; } = serverOptions.Value;
@@ -74,19 +78,21 @@ public abstract class ServerBase(IOptions<ServerOptions> serverOptions, ILogger 
         connectionOptions.ServerAuthenticationOptions.RemoteCertificateValidationCallback =
             (_, certificate, _, sslPolicyErrors) =>
             {
-                if (certificate is not null)
+                if (!Options.RequireClientCertificate)
                 {
-                    //Accept any certificate for poc purposes.
                     return true;
                 }
 
-                if (sslPolicyErrors != SslPolicyErrors.None)
+                if (certificate is null)
                 {
-                    Logger.LogError("SSL Policy Errors: {Errors}", sslPolicyErrors);
                     return false;
                 }
 
-                return true;
+                var remoteCertificate = new Certificate(certificate);
+
+                return peersStore.Contains(remoteCertificate) && 
+                       !remoteCertificate.IsExpired(TimeProvider.System) &&
+                       (!Options.ValidateFullChain || sslPolicyErrors == SslPolicyErrors.None);
             };
     }
 

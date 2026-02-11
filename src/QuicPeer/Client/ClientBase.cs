@@ -2,6 +2,7 @@
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
+using QuicPeer.Common;
 using QuicPeer.Options;
 
 namespace QuicPeer.Client;
@@ -13,14 +14,12 @@ public abstract class ClientBase
 
     protected ClientBase(IOptions<ClientOptions> options)
     {
-        Options =  options.Value;
+        Options = options.Value;
     }
+
     public async Task RunClientAsync(CancellationToken ct)
     {
-
         var options = BootstrapClient();
-        options.ClientAuthenticationOptions.LocalCertificateSelectionCallback = LoadClientCertificate;
-
         await RunClientInternal(options, ct);
     }
 
@@ -35,10 +34,11 @@ public abstract class ClientBase
         {
             DefaultStreamErrorCode = Options.DefaultStreamErrorCode,
             DefaultCloseErrorCode = Options.DefaultCloseErrorCode,
-            ClientAuthenticationOptions = new()
+            ClientAuthenticationOptions = new SslClientAuthenticationOptions
             {
                 ApplicationProtocols = [Options.ClientCertificate.ApplicationProtocol],
-                RemoteCertificateValidationCallback = ValidateServerCertificate
+                RemoteCertificateValidationCallback = ValidateServerCertificate,
+                LocalCertificateSelectionCallback = LoadClientCertificate,
             },
             MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams,
             MaxInboundUnidirectionalStreams = Options.MaxInboundUnidirectionalStreams,
@@ -48,23 +48,16 @@ public abstract class ClientBase
         return options;
     }
 
-
-    private X509Certificate2? LoadClientCertificate(object sender, string targetHost, X509CertificateCollection localCertificates, X509Certificate? remoteCertificate, string[] acceptableIssuers)
+    private X509Certificate2 LoadClientCertificate(object sender, string targetHost,
+        X509CertificateCollection localCertificates, X509Certificate? remoteCertificate, string[] acceptableIssuers)
     {
-        string certPath = Options.ClientCertificate.Path;
+        var certPath = Options.ClientCertificate.Path;
         return X509CertificateLoader.LoadPkcs12FromFile(certPath, string.Empty);
     }
 
-    static bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
-    {
-        if (sslPolicyErrors == SslPolicyErrors.None)
-        {
-            Console.WriteLine("Certificate validation successful.");
-            return true;
-        }
-
-        Console.WriteLine(sslPolicyErrors);
-
-        return true; // For poc purposes, accept the certificate anyway.
-    }
+    private bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,
+        SslPolicyErrors sslPolicyErrors) =>
+        certificate is not null &&
+        !new Certificate(certificate).IsExpired(TimeProvider.System) &&
+        (!Options.ValidateFullChain || sslPolicyErrors == SslPolicyErrors.None);
 }

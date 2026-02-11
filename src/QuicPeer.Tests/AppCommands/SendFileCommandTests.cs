@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using QuicPeer.AppCommands;
-using QuicPeer.Client;
+using QuicPeer.Client.Abstraction;
 
 namespace QuicPeer.Tests.AppCommands;
 

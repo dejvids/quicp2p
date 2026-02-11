@@ -8,4 +8,5 @@ public class PeerConnectionOptions
     public int KeepAliveInterval { get; set; } = 5;
     public int DefaultStreamErrorCode { get; set; } = 0xA;
     public int DefaultCloseErrorCode { get; set; } = 0xB;
+    public bool ValidateFullChain { get; set; }
 }

@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Options;
-
-namespace QuicPeer.Options;
+﻿namespace QuicPeer.Options;
 
 public class ServerOptions : PeerConnectionOptions
 {
@@ -10,4 +8,6 @@ public class ServerOptions : PeerConnectionOptions
     public ServerTransferOptions Transfer { get; set; } = new();
     public byte RestartAttempts { get; set; } = 3;
     public uint RestartInterval { get; set; } = 5;
+    public string TrustedCertsPath { get; set; } = "peers";
+    public bool RequireClientCertificate { get; set; } = true;
 }

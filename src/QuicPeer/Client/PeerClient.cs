@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Quic;
 using System.Text;
 using Microsoft.Extensions.Options;
+using QuicPeer.Client.Abstraction;
 using QuicPeer.Client.Exceptions;
 using QuicPeer.Common;
 using QuicPeer.Common.Dto;
@@ -17,6 +18,7 @@ public sealed class PeerClient(
     IChecksumProvider checksumProvider)
     : ClientBase(options), IPeerClient
 {
+    private bool _disposed;
     private QuicConnection? _connection;
     private CancellationTokenSource _cts = new();
     private readonly Stopwatch _stopwatch = new();
@@ -30,8 +32,9 @@ public sealed class PeerClient(
         options.ClientAuthenticationOptions.TargetHost = remoteEndpoint.Address.ToString();
 
         var connection = await QuicConnection.ConnectAsync(options, ct);
+        await ProbeConnection(connection, ct);
         _connection = connection;
-        RemoteEndpoint = connection.RemoteEndPoint;
+        RemoteEndpoint = _connection.RemoteEndPoint;
     }
 
     public async Task SendAsync(string message)
@@ -112,14 +115,28 @@ public sealed class PeerClient(
         if (_connection is not null)
         {
             await _connection.CloseAsync(ControlCodes.ClientDisconnected);
-            await _connection.DisposeAsync();
         }
     }
 
-    public ValueTask DisposeAsync()
+    private async Task ProbeConnection(QuicConnection connection, CancellationToken ct)
     {
+        await Task.Delay(Options.TlsHandshakeDelay, ct);
+        await using var probeStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct);
+        await probeStream.WriteAsync(Memory<byte>.Empty, ct);
+        probeStream.CompleteWrites();
+    }
+    
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
         _cts.Dispose();
-
-        return ValueTask.CompletedTask;
+        if (_connection is not null)
+        {
+            await _connection.DisposeAsync();
+        }
     }
 }

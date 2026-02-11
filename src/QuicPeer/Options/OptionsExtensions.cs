@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Options;
-
-namespace QuicPeer.Options;
+﻿namespace QuicPeer.Options;
 
 public static class OptionsExtensions
 {

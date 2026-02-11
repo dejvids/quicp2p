@@ -1,6 +1,4 @@
-﻿using System.Runtime.Serialization;
-
-namespace QuicPeer.Common.Exceptions;
+﻿namespace QuicPeer.Common.Exceptions;
 
 public class DataIntegrityException : Exception
 {
