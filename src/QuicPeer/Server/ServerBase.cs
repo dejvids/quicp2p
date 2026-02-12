@@ -1,6 +1,6 @@
-﻿using System.Net.Quic;
+﻿using System.IO.Abstractions;
+using System.Net.Quic;
 using System.Net.Security;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
 using QuicPeer.Common;
@@ -11,7 +11,8 @@ namespace QuicPeer.Server;
 public abstract class ServerBase(
     IOptions<ServerOptions> serverOptions,
     ILogger logger,
-    IPeersStore peersStore) : BackgroundService
+    IPeersStore peersStore,
+    IFileSystem fileSystem) : BackgroundService
 {
     protected ILogger Logger { get; } = logger;
     protected ServerOptions Options { get; } = serverOptions.Value;
@@ -113,9 +114,9 @@ public abstract class ServerBase(
 
     private async ValueTask<X509Certificate2> LoadServerCertificate(CertificateOptions certificateOptions)
     {
-        if (!File.Exists(certificateOptions.Path))
+        if (!fileSystem.File.Exists(certificateOptions.Path))
         {
-            await CreateSelfSignedCertficate(certificateOptions.Path);
+            await CreateSelfSignedCertificate();
             Logger.LogInformation("Created Self-Signed certificate {Path}", certificateOptions.Path);
         }
 
@@ -123,30 +124,10 @@ public abstract class ServerBase(
         return X509CertificateLoader.LoadPkcs12FromFile(certificateOptions.Path, string.Empty);
     }
 
-    private static async Task CreateSelfSignedCertficate(string certPath)
+    private async Task CreateSelfSignedCertificate()
     {
-        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var distinguishedName = new X500DistinguishedName("CN=QuicPeer");
-
-        var request = new CertificateRequest(
-            distinguishedName,
-            ecdsa,
-            HashAlgorithmName.SHA256);
-
-        request.CertificateExtensions.Add(
-            new X509KeyUsageExtension(
-                X509KeyUsageFlags.DataEncipherment |
-                X509KeyUsageFlags.KeyEncipherment |
-                X509KeyUsageFlags.DigitalSignature,
-                critical: false));
-
-        var notAfter = DateTimeOffset.UtcNow.AddYears(1);
-        var notBefore = DateTimeOffset.UtcNow.AddDays(-1);
-
-        var certificate = request.CreateSelfSigned(notBefore, notAfter);
-
-        var bytes = certificate.Export(X509ContentType.Pfx);
-
-        await File.WriteAllBytesAsync(certPath, bytes);
+        var certificate = new Certificate(Options.ServerCertificate);
+        var pfx = certificate.GetBytes(null);
+        await fileSystem.File.WriteAllBytesAsync(Options.ServerCertificate.Path, pfx);
     }
 }

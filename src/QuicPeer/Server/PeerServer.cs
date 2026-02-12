@@ -1,4 +1,5 @@
-﻿using System.Net.Quic;
+﻿using System.IO.Abstractions;
+using System.Net.Quic;
 using Microsoft.Extensions.Options;
 using QuicPeer.Options;
 
@@ -9,8 +10,9 @@ public sealed class PeerServer(
     ILogger<PeerServer> logger,
     IServiceScopeFactory scopeFactory,
     IHostApplicationLifetime appLifetime,
-    IPeersStore peersStore)
-    : ServerBase(configuration, logger, peersStore)
+    IPeersStore peersStore,
+    IFileSystem fileSystem)
+    : ServerBase(configuration, logger, peersStore, fileSystem)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
