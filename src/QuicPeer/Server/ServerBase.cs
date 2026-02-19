@@ -126,7 +126,7 @@ public abstract class ServerBase(
 
     private async Task CreateSelfSignedCertificate()
     {
-        var certificate = new Certificate(Options.ServerCertificate);
+        var certificate = new Certificate(Options.ServerCertificate, TimeProvider.System);
         var pfx = certificate.GetBytes();
         await fileSystem.File.WriteAllBytesAsync(CertificateOptions.Path, pfx);
     }

@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 using NSubstitute;
+using QuicPeer.Options;
 
 namespace QuicPeer.Tests.Common;
 
@@ -101,5 +102,56 @@ public class CertificateTests
         Assert.NotEmpty(exported);
         var exception = Record.Exception(()=>X509CertificateLoader.LoadPkcs12(exported, null));
         Assert.Null(exception);
+    }
+
+    [Fact]
+    public void should_set_CN_from_options()
+    {
+        const string CN = "test";
+
+        CertificateOptions options = new()
+        {
+            CommonName = CN
+        };
+        var timeProvider = Substitute.For<TimeProvider>();
+        timeProvider.GetUtcNow().Returns(_ => new DateTimeOffset(new DateTime(2100, 1,1)));
+        var wrapper = new QuicPeer.Common.Certificate(options, timeProvider);
+        
+        var exported = wrapper.GetBytes();
+        var cert = X509CertificateLoader.LoadPkcs12(exported, null);
+        
+        Assert.Equal($"CN="+CN, cert.Subject);
+    }
+    
+    [Fact]
+    public void should_set_expiration_date_from_options()
+    {
+        var utcNow = new DateTime(2100, 1, 1);
+        var lifespan = TimeSpan.FromDays(2);
+        var timeProvider = Substitute.For<TimeProvider>();
+        timeProvider.GetUtcNow().Returns(_ => new DateTimeOffset(utcNow));
+        var options = new CertificateOptions
+        {
+            CommonName = "test",
+            Lifespan = lifespan
+        };
+        
+        var cert = new QuicPeer.Common.Certificate(options, timeProvider);
+
+        var isExpired = cert.IsExpired(timeProvider);
+        Assert.False(isExpired);
+
+
+        utcNow = utcNow.AddDays(1); // Day before expiration
+        isExpired = cert.IsExpired(timeProvider);
+        Assert.False(isExpired);
+        
+        utcNow = utcNow.AddDays(2); // Day of expiration
+        isExpired = cert.IsExpired(timeProvider);
+        Assert.True(isExpired);
+        
+        utcNow = utcNow.AddDays(3); // Day after expiration
+        isExpired = cert.IsExpired(timeProvider);
+        Assert.True(isExpired);
     }
 }
