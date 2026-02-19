@@ -51,7 +51,7 @@ public abstract class ClientBase
     private X509Certificate2 LoadClientCertificate(object sender, string targetHost,
         X509CertificateCollection localCertificates, X509Certificate? remoteCertificate, string[] acceptableIssuers)
     {
-        var certPath = Options.ClientCertificate.Path;
+        var certPath = CertificateOptions.Path;
         return X509CertificateLoader.LoadPkcs12FromFile(certPath, string.Empty);
     }
 
