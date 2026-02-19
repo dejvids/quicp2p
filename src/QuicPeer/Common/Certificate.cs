@@ -21,7 +21,7 @@ public sealed class Certificate : IDisposable
         Value = GenerateSelfSigned(options);
     }
     
-    public byte[] GetBytes(SecureString? password) => 
+    public byte[] GetBytes() => 
         Value.Export(X509ContentType.Pfx);
 
     private static X509Certificate2 GenerateSelfSigned(CertificateOptions options)
@@ -41,7 +41,7 @@ public sealed class Certificate : IDisposable
                 X509KeyUsageFlags.DigitalSignature,
                 critical: false));
 
-        var notAfter = DateTimeOffset.UtcNow.Add(options.Lifetime);
+        var notAfter = DateTimeOffset.UtcNow.Add(options.Lifespan);
         var notBefore = DateTimeOffset.UtcNow.AddDays(-1);
 
         return request.CreateSelfSigned(notBefore, notAfter);

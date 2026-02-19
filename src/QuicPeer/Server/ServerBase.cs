@@ -114,20 +114,20 @@ public abstract class ServerBase(
 
     private async ValueTask<X509Certificate2> LoadServerCertificate(CertificateOptions certificateOptions)
     {
-        if (!fileSystem.File.Exists(certificateOptions.Path))
+        if (!fileSystem.File.Exists(CertificateOptions.Path))
         {
             await CreateSelfSignedCertificate();
-            Logger.LogInformation("Created Self-Signed certificate {Path}", certificateOptions.Path);
+            Logger.LogInformation("Created Self-Signed certificate {Path}", CertificateOptions.Path);
         }
 
         Logger.LogInformation("Loading Self-Signed certificate from file");
-        return X509CertificateLoader.LoadPkcs12FromFile(certificateOptions.Path, string.Empty);
+        return X509CertificateLoader.LoadPkcs12FromFile(CertificateOptions.Path, string.Empty);
     }
 
     private async Task CreateSelfSignedCertificate()
     {
         var certificate = new Certificate(Options.ServerCertificate);
-        var pfx = certificate.GetBytes(null);
-        await fileSystem.File.WriteAllBytesAsync(Options.ServerCertificate.Path, pfx);
+        var pfx = certificate.GetBytes();
+        await fileSystem.File.WriteAllBytesAsync(CertificateOptions.Path, pfx);
     }
 }

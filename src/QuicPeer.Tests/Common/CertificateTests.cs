@@ -88,4 +88,18 @@ public class CertificateTests
         
         Assert.Equal(isExpired, wrapper.IsExpired(timeProvider));
     }
+
+    [Fact]
+    public void should_export_to_pfx()
+    {
+        var cert = X509CertificateLoader.LoadCertificate(
+            Convert.FromBase64String(Base64));
+        var wrapper = new QuicPeer.Common.Certificate(cert);
+
+        var exported = wrapper.GetBytes();
+        
+        Assert.NotEmpty(exported);
+        var exception = Record.Exception(()=>X509CertificateLoader.LoadPkcs12(exported, null));
+        Assert.Null(exception);
+    }
 }
