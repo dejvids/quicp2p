@@ -22,6 +22,7 @@ builder.Services.AddScoped<IFilesReceiver, FilesReceiver>();
 builder.Services.AddScoped<ConnectionManager>();
 builder.Services.AddSingleton<IFileSystem>(new FileSystem());
 builder.Services.AddSingleton<IMessageQueue<IServerCommand>, ServerMessageQueue>();
+builder.Services.AddSingleton<IMessageQueue<IConsoleMessage>, ConsoleMessageQueue>();
 builder.Services.AddSingleton<IPeersStore, PeersStore>();
 builder.ConfigureOptions();
 

@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using QuicPeer.Options;
@@ -9,9 +8,9 @@ namespace QuicPeer.Common;
 public sealed class Certificate : IDisposable
 {
     private bool _disposed;
-    private X509Certificate Value { get; }
+    private X509Certificate2 Value { get; }
 
-    public Certificate(X509Certificate value)
+    public Certificate(X509Certificate2 value)
     {
         Value = value;
     }
@@ -20,9 +19,22 @@ public sealed class Certificate : IDisposable
     {
         Value = GenerateSelfSigned(options, timeProvider);
     }
-    
-    public byte[] GetBytes() => 
+
+    public Certificate(X509Certificate certificate)
+    {
+        Value = new X509Certificate2(certificate);
+    }
+
+    public byte[] GetPfx() => 
         Value.Export(X509ContentType.Pfx);
+    
+    public string GetPem() =>
+        Value.ExportCertificatePem();
+
+    public string GetPrivateKey(string passphrase) =>
+        Value.GetECDsaPrivateKey()!
+            .ExportEncryptedPkcs8PrivateKeyPem(passphrase,
+                new PbeParameters(PbeEncryptionAlgorithm.Aes128Cbc, HashAlgorithmName.SHA256, 3));
 
     private static X509Certificate2 GenerateSelfSigned(CertificateOptions options, TimeProvider timeProvider)
     {

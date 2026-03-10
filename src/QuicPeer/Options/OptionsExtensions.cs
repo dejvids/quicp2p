@@ -4,11 +4,13 @@ public static class OptionsExtensions
 {
     public static IHostApplicationBuilder ConfigureOptions(this IHostApplicationBuilder builder)
     {
-        var certificateOptions = builder.Configuration.GetSection(CertificateOptions.SectionName)?
+        var certificateSection = builder.Configuration.GetSection(ClientOptions.SectionName);
+        var certificateOptions = certificateSection
             .Get<CertificateOptions>() ??  new CertificateOptions();
         var transferOptions = builder.Configuration.GetSection(TransferOptions.SectionName)?
             .Get<TransferOptions>();
 
+        builder.Services.AddOptionsWithValidateOnStart<CertificateOptions>().Bind(certificateSection);
         builder.Services.AddOptionsWithValidateOnStart<ServerOptions>()
             .Configure(serverOptions =>
             {

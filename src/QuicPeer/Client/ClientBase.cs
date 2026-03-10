@@ -9,12 +9,14 @@ namespace QuicPeer.Client;
 
 public abstract class ClientBase
 {
+    private readonly X509Certificate2 _certificate;
     protected ClientOptions Options { get; }
     protected abstract Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct);
 
-    protected ClientBase(IOptions<ClientOptions> options)
+    protected ClientBase(IOptions<ClientOptions> options, X509Certificate2 certificate)
     {
         Options = options.Value;
+        _certificate = certificate;
     }
 
     public async Task RunClientAsync(CancellationToken ct)
@@ -38,7 +40,7 @@ public abstract class ClientBase
             {
                 ApplicationProtocols = [Options.ClientCertificate.ApplicationProtocol],
                 RemoteCertificateValidationCallback = ValidateServerCertificate,
-                LocalCertificateSelectionCallback = LoadClientCertificate,
+                ClientCertificates = [_certificate]
             },
             MaxInboundBidirectionalStreams = Options.MaxInboundBidirectionalStreams,
             MaxInboundUnidirectionalStreams = Options.MaxInboundUnidirectionalStreams,
@@ -46,13 +48,6 @@ public abstract class ClientBase
         };
 
         return options;
-    }
-
-    private X509Certificate2 LoadClientCertificate(object sender, string targetHost,
-        X509CertificateCollection localCertificates, X509Certificate? remoteCertificate, string[] acceptableIssuers)
-    {
-        var certPath = CertificateOptions.Path;
-        return X509CertificateLoader.LoadPkcs12FromFile(certPath, string.Empty);
     }
 
     private bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,

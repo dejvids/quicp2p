@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
 using QuicPeer.AppCommands;
+using QuicPeer.Common;
 using QuicPeer.Server.Commands;
 using Spectre.Console;
 
@@ -16,7 +17,9 @@ public class ConsoleApp : IHostedService
     private readonly Dictionary<string, AppCommand> _appCommands;
     private readonly ConcurrentQueue<MessageCommand> _messages = new();
     private readonly IHostApplicationLifetime _appLifetime;
+    private readonly UnlockCommand _unlockCommand;
 
+    public const string MainMenu = "main-menu";
     public Task AppRunner {get; private set;} = Task.CompletedTask;
     static ConsoleApp()
     {
@@ -27,8 +30,8 @@ public class ConsoleApp : IHostedService
     public ConsoleApp(ILogger<ConsoleApp> logger,
         IConsoleAccessor consoleAccessor,
         IMessageQueue<IServerCommand> serverMessageQueue,
-        ConnectCommand connectCommand,
-        ShowDataCommand showDataCommand,
+        [FromKeyedServices(MainMenu)] IEnumerable<AppCommand> appCommands,
+        UnlockCommand unlockCommand,
         IHostApplicationLifetime appLifetime)
     {
         _logger = logger;
@@ -36,16 +39,20 @@ public class ConsoleApp : IHostedService
         _console = consoleAccessor.Console;
         _serverMessageQueue = serverMessageQueue;
         _appLifetime = appLifetime;
+        _unlockCommand = unlockCommand;
 
-        AppCommand[] commands = [connectCommand, showDataCommand];
-
-        _appCommands = commands.ToDictionary(c => c.CommandName);
+        _appCommands = appCommands.ToDictionary(c => c.CommandName);
     }
 
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Console app started.");
-
+        var unlockResult = await _unlockCommand.Execute(cancellationToken);
+        if (!unlockResult.IsSuccess)
+        {
+            _appLifetime.StopApplication();
+            return;
+        }
         var menuOptions = new List<string>(_appCommands.Values.Select(c => c.CommandName))
         {
             ExitCommand
@@ -65,8 +72,6 @@ public class ConsoleApp : IHostedService
             _console.MarkupLine("Console app has been stopped due to unexpected error.");
             _logger.LogCritical(ex, "Critical error in console app.");
         }
-        
-        return Task.CompletedTask;
     }
 
     private async Task ShowMenu(IPrompt<string> mainMenu, CancellationToken cancellationToken)
@@ -79,7 +84,7 @@ public class ConsoleApp : IHostedService
                 return;
             }
 
-            var userCommand = await mainMenu.ShowAsync(_console, CancellationToken.None);
+            var userCommand = await mainMenu.ShowAsync(_console, cancellationToken);
 
             if (userCommand.Equals(ExitCommand, StringComparison.OrdinalIgnoreCase))
             {

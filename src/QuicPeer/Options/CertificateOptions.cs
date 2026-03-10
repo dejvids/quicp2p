@@ -5,7 +5,8 @@ namespace QuicPeer.Options;
 public class CertificateOptions
 {
     public const string SectionName = "Certificate";
-    public static string Path => "peer.pfx";
+    public string KeyPath => Path.Combine("key", "peer.key");
+    public string CertPath => "peer.crt";
     
     public SslApplicationProtocol ApplicationProtocol { get; } = new ("quic-peer");
 

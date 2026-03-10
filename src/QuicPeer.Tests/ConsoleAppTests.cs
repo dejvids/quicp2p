@@ -2,9 +2,10 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using QuicPeer.Common;
 using QuicPeer.Server.Commands;
+using QuicPeer.Tests.AppCommands;
 using Spectre.Console;
-using static QuicPeer.Tests.AppCommands.AppCommandsMock;
 
 namespace QuicPeer.Tests;
 
@@ -27,8 +28,9 @@ public sealed class ConsoleAppTests : IDisposable
     {
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
             Substitute.For<IMessageQueue<IServerCommand>>(),
-            ConnectCommand,
-            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
+            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+            AppCommandsMock.UnlockCommand,
+            Substitute.For<IHostApplicationLifetime>());
 
         _ = consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
@@ -41,8 +43,9 @@ public sealed class ConsoleAppTests : IDisposable
     {
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
            Substitute.For<IMessageQueue<IServerCommand>>(),
-           ConnectCommand,
-           ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
+           [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+           AppCommandsMock.UnlockCommand, 
+           Substitute.For<IHostApplicationLifetime>());
 
         _ = consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
@@ -69,8 +72,9 @@ public sealed class ConsoleAppTests : IDisposable
 
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
             serverMessageQueue,
-            ConnectCommand,
-            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
+            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+            AppCommandsMock.UnlockCommand, 
+            Substitute.For<IHostApplicationLifetime>());
         
         _ = consoleApp.StartAsync(cts.Token);
         await consoleApp.AppRunner;
@@ -87,8 +91,9 @@ public sealed class ConsoleAppTests : IDisposable
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(),
             _consoleAccessor,
             Substitute.For<IMessageQueue<IServerCommand>>(),
-            ConnectCommand,
-            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
+            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+            AppCommandsMock.UnlockCommand, 
+            Substitute.For<IHostApplicationLifetime>());
 
         _ = consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
@@ -104,13 +109,14 @@ public sealed class ConsoleAppTests : IDisposable
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(),
             _consoleAccessor,
             Substitute.For<IMessageQueue<IServerCommand>>(),
-            ConnectCommand,
-            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
+            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+            AppCommandsMock.UnlockCommand,
+            Substitute.For<IHostApplicationLifetime>());
 
         _ = consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
         
-        await ConnectCommand.Received().Execute(Arg.Any<CancellationToken>());
+        await AppCommandsMock.ConnectCommand.Received().Execute(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -120,13 +126,14 @@ public sealed class ConsoleAppTests : IDisposable
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(),
             _consoleAccessor,
             Substitute.For<IMessageQueue<IServerCommand>>(),
-            ConnectCommand,
-            ShowDataCommand, Substitute.For<IHostApplicationLifetime>());
+            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+            AppCommandsMock.UnlockCommand,
+            Substitute.For<IHostApplicationLifetime>());
 
         _ = consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
         
-        await ShowDataCommand.Received().Execute(Arg.Any<IEnumerable<MessageCommand>>(), Arg.Any<CancellationToken>());
+        await AppCommandsMock.ShowDataCommand.Received().Execute(Arg.Any<IEnumerable<MessageCommand>>(), Arg.Any<CancellationToken>());
     }
     
     public void Dispose()

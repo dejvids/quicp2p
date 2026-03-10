@@ -20,7 +20,7 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
         _peerConnector.Connect(Arg.Any<string>(), 
             Arg.Any<CancellationToken>()).ThrowsForAnyArgs(connectionException);
         var command = new ConnectCommand(_logger, ConsoleAccessor,
-            _peerConnector, ConnectCommandMock.SendCommand, ConnectCommandMock.SendFileCommand);
+            _peerConnector, [ConnectCommandMock.SendCommand, ConnectCommandMock.SendFileCommand]);
         
         await command.Execute(CancellationToken);
 
@@ -32,7 +32,7 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
     {
         const string expectedEndpoint = "remote.point:501";
         var command = new ConnectCommand(_logger, ConsoleAccessor,
-            _peerConnector, ConnectCommandMock.SendCommand, ConnectCommandMock.SendFileCommand);
+            _peerConnector, [ConnectCommandMock.SendCommand, ConnectCommandMock.SendFileCommand]);
 
         var textPrompt = Substitute.For<IPrompt<string>>();
         textPrompt.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs(expectedEndpoint);
@@ -56,8 +56,8 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
 
         var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector, 
-                ConnectCommandMock.SendCommand, 
-                ConnectCommandMock.SendFileCommand);
+                [ConnectCommandMock.SendCommand, 
+                ConnectCommandMock.SendFileCommand]);
         
         await command.Execute(CancellationToken);
 
@@ -78,8 +78,8 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
 
         var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
-                ConnectCommandMock.SendCommand,
-                ConnectCommandMock.SendFileCommand);
+                [ConnectCommandMock.SendCommand,
+                ConnectCommandMock.SendFileCommand]);
         
         await command.Execute(CancellationToken);
 
@@ -99,8 +99,8 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
 
         var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
-                ConnectCommandMock.SendCommand,
-                ConnectCommandMock.SendFileCommand);
+                [ConnectCommandMock.SendCommand,
+                ConnectCommandMock.SendFileCommand]);
         
         await command.Execute(CancellationToken);
 
@@ -130,8 +130,8 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
 
         var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
-                ConnectCommandMock.SendCommand,
-                ConnectCommandMock.SendFileCommand);
+                [ConnectCommandMock.SendCommand,
+                ConnectCommandMock.SendFileCommand]);
         
         await command.Execute(CancellationToken);
 

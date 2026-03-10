@@ -97,7 +97,7 @@ public class CertificateTests
             Convert.FromBase64String(Base64));
         var wrapper = new QuicPeer.Common.Certificate(cert);
 
-        var exported = wrapper.GetBytes();
+        var exported = wrapper.GetPfx();
         
         Assert.NotEmpty(exported);
         var exception = Record.Exception(()=>X509CertificateLoader.LoadPkcs12(exported, null));
@@ -117,7 +117,7 @@ public class CertificateTests
         timeProvider.GetUtcNow().Returns(_ => new DateTimeOffset(new DateTime(2100, 1,1)));
         var wrapper = new QuicPeer.Common.Certificate(options, timeProvider);
         
-        var exported = wrapper.GetBytes();
+        var exported = wrapper.GetPfx();
         var cert = X509CertificateLoader.LoadPkcs12(exported, null);
         
         Assert.Equal($"CN="+CN, cert.Subject);

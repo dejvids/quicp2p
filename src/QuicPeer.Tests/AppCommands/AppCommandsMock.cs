@@ -1,7 +1,11 @@
 ﻿using System.IO.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using QuicPeer.AppCommands;
+using QuicPeer.Client.Abstraction;
+using QuicPeer.Common;
+using QuicPeer.Options;
 
 namespace QuicPeer.Tests.AppCommands;
 
@@ -9,17 +13,23 @@ public static class AppCommandsMock
 {
     public static ConnectCommand ConnectCommand { get; }
     public static ShowDataCommand ShowDataCommand { get; }
+    public static UnlockCommand UnlockCommand { get; }
 
     static AppCommandsMock()
     {
         var connectCommand = new ConnectCommandMock();
         var showDataCommand = new ShowDataCommandMock();
+        var unlockCommand = new UnlockCommandMock();
 
         ConnectCommand = Substitute.For<ConnectCommandMock>();
         ShowDataCommand = Substitute.For<ShowDataCommandMock>();
+        UnlockCommand = Substitute.For<UnlockCommandMock>();
+
         
         ConnectCommand.CommandName.Returns(connectCommand.CommandName);
         ShowDataCommand.CommandName.Returns(showDataCommand.CommandName);
+        UnlockCommand.CommandName.Returns(unlockCommand.CommandName);
+        UnlockCommand.Execute(Arg.Any<CancellationToken>()).Returns(CommandResult.Success);
     }
 
     public class ConnectCommandMock : ConnectCommand
@@ -43,8 +53,7 @@ public static class AppCommandsMock
             : base(Substitute.For<ILogger<ConnectCommand>>(), 
                 Substitute.For<IConsoleAccessor>(), 
                 null!, 
-                new SendCommandMock(), 
-                new SendFileCommandMock())
+                [new SendCommandMock(), new SendFileCommandMock()])
         {
         }
 
@@ -79,6 +88,19 @@ public static class AppCommandsMock
     {
         public SendFileCommandMock()
             : base(Substitute.For<ILogger<SendFileCommand>>(), Substitute.For<IConsoleAccessor>(),
+                Substitute.For<IFileSystem>())
+        {
+        }
+    }
+
+    public class UnlockCommandMock : UnlockCommand
+    {
+        public UnlockCommandMock() 
+            : base(Substitute.For<ILogger<UnlockCommand>>(), 
+                Substitute.For<IConsoleAccessor>(), 
+                Substitute.For<IMessageQueue<IConsoleMessage>>(),
+                Substitute.For<IOptions<CertificateOptions>>(),
+                Substitute.For<IPeerClientFactory>(),
                 Substitute.For<IFileSystem>())
         {
         }

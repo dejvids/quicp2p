@@ -2,6 +2,7 @@
 using System.IO.Abstractions;
 using System.Net;
 using System.Net.Quic;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Options;
 using QuicPeer.Client.Abstraction;
@@ -15,8 +16,9 @@ namespace QuicPeer.Client;
 public sealed class PeerClient(
     IOptions<ClientOptions> options,
     IPEndPoint remoteEndpoint,
+    X509Certificate2 certificate,
     IChecksumProvider checksumProvider)
-    : ClientBase(options), IPeerClient
+    : ClientBase(options, certificate), IPeerClient
 {
     private bool _disposed;
     private QuicConnection? _connection;
