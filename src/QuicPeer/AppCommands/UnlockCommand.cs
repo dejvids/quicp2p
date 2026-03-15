@@ -70,8 +70,10 @@ public class UnlockCommand(
             try
             {
                 var password = await passwordPrompt.ShowAsync(Console, cancellationToken);
-                return X509Certificate2.CreateFromEncryptedPemFile(_certificateOptions.CertPath, password, 
-                    _certificateOptions.KeyPath);
+                var certPem = await _fileSystem.File.ReadAllTextAsync(_certificateOptions.CertPath, cancellationToken);
+                var keyPem = await _fileSystem.File.ReadAllTextAsync(_certificateOptions.KeyPath, cancellationToken);
+
+                return X509Certificate2.CreateFromEncryptedPem(certPem, keyPem, password);
             }
             catch (Exception e)
             {
@@ -92,7 +94,7 @@ public class UnlockCommand(
         var crt = certificate.GetPem();
         var privateKey = certificate.GetPrivateKey(passphrase);
         var keyDirectory = _fileSystem.Path.GetDirectoryName(_certificateOptions.KeyPath);
-        if (keyDirectory is not null)
+        if (!string.IsNullOrEmpty(keyDirectory))
         {
             _fileSystem.Directory.CreateDirectory(keyDirectory);
         }

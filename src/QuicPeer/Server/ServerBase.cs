@@ -67,7 +67,7 @@ public abstract class ServerBase : BackgroundService
                 }
             }
         }
-        catch (OperationCanceledException e)
+        catch (OperationCanceledException)
         {
             CertificateLoaded.SetCanceled(stoppingToken);
         }
