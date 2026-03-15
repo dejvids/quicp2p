@@ -4,6 +4,8 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using QuicPeer.Client.Abstraction;
 using QuicPeer.Common;
+using QuicPeer.Common.Messaging;
+using QuicPeer.Common.Messaging.ClientQueue;
 using QuicPeer.Options;
 using Spectre.Console;
 
@@ -12,13 +14,13 @@ namespace QuicPeer.AppCommands;
 public class UnlockCommand(
     ILogger<UnlockCommand> logger,
     IConsoleAccessor consoleAccessor,
-    IMessageQueue<IConsoleMessage> messageQueue,
+    IMessageQueue<IClientMessage> messageQueue,
     IOptions<CertificateOptions> certificateOptions,
     IPeerClientFactory peerClientFactory,
     IFileSystem fileSystem)
     : AppCommand(logger, consoleAccessor)
 {
-    private readonly IMessageQueue<IConsoleMessage> _messageQueue = messageQueue;
+    private readonly IMessageQueue<IClientMessage> _messageQueue = messageQueue;
     private readonly CertificateOptions _certificateOptions = certificateOptions.Value;
     private readonly IPeerClientFactory _peerClientFactory = peerClientFactory;
     private readonly IFileSystem _fileSystem = fileSystem;
@@ -45,7 +47,7 @@ public class UnlockCommand(
     private bool CertificateNotFound()
     {
         return !_fileSystem.File.Exists(_certificateOptions.CertPath) ||
-               !_fileSystem.File.Exists(_certificateOptions.KeyPath);;
+               !_fileSystem.File.Exists(_certificateOptions.KeyPath);
     }
 
     private async Task CreateCertificate(CancellationToken ct)

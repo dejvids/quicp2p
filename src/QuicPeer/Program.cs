@@ -6,8 +6,10 @@ using QuicPeer.Client.Abstraction;
 using QuicPeer.Logging;
 using QuicPeer.Options;
 using QuicPeer.Server;
-using QuicPeer.Server.Commands;
 using QuicPeer.Common;
+using QuicPeer.Common.Messaging;
+using QuicPeer.Common.Messaging.ClientQueue;
+using QuicPeer.Common.Messaging.ServerQueue;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSerilogLogging();
@@ -21,8 +23,8 @@ builder.Services.AddSingleton<IChecksumProvider, CheckSumProvider>();
 builder.Services.AddScoped<IFilesReceiver, FilesReceiver>();
 builder.Services.AddScoped<ConnectionManager>();
 builder.Services.AddSingleton<IFileSystem>(new FileSystem());
-builder.Services.AddSingleton<IMessageQueue<IServerCommand>, ServerMessageQueue>();
-builder.Services.AddSingleton<IMessageQueue<IConsoleMessage>, ConsoleMessageQueue>();
+builder.Services.AddSingleton<IMessageQueue<IServerMessage>, ServerMessageQueue>();
+builder.Services.AddSingleton<IMessageQueue<IClientMessage>, ClientMessageQueue>();
 builder.Services.AddSingleton<IPeersStore, PeersStore>();
 builder.ConfigureOptions();
 

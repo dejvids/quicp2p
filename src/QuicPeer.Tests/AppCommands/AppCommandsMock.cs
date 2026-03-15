@@ -4,7 +4,8 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using QuicPeer.AppCommands;
 using QuicPeer.Client.Abstraction;
-using QuicPeer.Common;
+using QuicPeer.Common.Messaging;
+using QuicPeer.Common.Messaging.ClientQueue;
 using QuicPeer.Options;
 
 namespace QuicPeer.Tests.AppCommands;
@@ -98,7 +99,7 @@ public static class AppCommandsMock
         public UnlockCommandMock() 
             : base(Substitute.For<ILogger<UnlockCommand>>(), 
                 Substitute.For<IConsoleAccessor>(), 
-                Substitute.For<IMessageQueue<IConsoleMessage>>(),
+                Substitute.For<IMessageQueue<IClientMessage>>(),
                 Substitute.For<IOptions<CertificateOptions>>(),
                 Substitute.For<IPeerClientFactory>(),
                 Substitute.For<IFileSystem>())

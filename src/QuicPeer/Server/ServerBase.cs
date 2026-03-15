@@ -2,8 +2,9 @@
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
-using QuicPeer.AppCommands;
 using QuicPeer.Common;
+using QuicPeer.Common.Messaging;
+using QuicPeer.Common.Messaging.ClientQueue;
 using QuicPeer.Options;
 
 namespace QuicPeer.Server;
@@ -11,13 +12,13 @@ namespace QuicPeer.Server;
 public abstract class ServerBase : BackgroundService
 {
     private readonly IPeersStore _peersStore;
-    private readonly IMessageQueue<IConsoleMessage> _messageQueue;
+    private readonly IMessageQueue<IClientMessage> _messageQueue;
     private TaskCompletionSource<X509Certificate2> CertificateLoaded { get; }
 
     protected ServerBase(IOptions<ServerOptions> serverOptions,
         ILogger logger,
         IPeersStore peersStore,
-        IMessageQueue<IConsoleMessage> messageQueue)
+        IMessageQueue<IClientMessage> messageQueue)
     {
         _peersStore = peersStore;
         _messageQueue = messageQueue;
@@ -55,13 +56,24 @@ public abstract class ServerBase : BackgroundService
 
     private async Task ListenConsoleMessages(CancellationToken stoppingToken)
     {
-        await foreach (var message in _messageQueue.DequeueAllAsync(stoppingToken))
+        try
         {
-            if (message is Unlocked unlockCommand)
+            await foreach (var message in _messageQueue.DequeueAllAsync(stoppingToken))
             {
-                var x509 = X509CertificateLoader.LoadCertificate(unlockCommand.Certificate);
-                CertificateLoaded.SetResult(x509);
+                if (message is Unlocked unlockCommand)
+                {
+                    var x509 = X509CertificateLoader.LoadCertificate(unlockCommand.Certificate);
+                    CertificateLoaded.SetResult(x509);
+                }
             }
+        }
+        catch (OperationCanceledException e)
+        {
+            CertificateLoaded.SetCanceled(stoppingToken);
+        }
+        catch (Exception e)
+        {
+            CertificateLoaded.SetException(e);
         }
     }
 

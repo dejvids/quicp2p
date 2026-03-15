@@ -1,8 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
 using QuicPeer.AppCommands;
-using QuicPeer.Common;
-using QuicPeer.Server.Commands;
+using QuicPeer.Common.Messaging;
+using QuicPeer.Common.Messaging.ServerQueue;
 using Spectre.Console;
 
 namespace QuicPeer;
@@ -10,12 +10,12 @@ namespace QuicPeer;
 public class ConsoleApp : IHostedService
 {
     private const string ExitCommand = "Exit";
-    private readonly IMessageQueue<IServerCommand> _serverMessageQueue;
+    private readonly IMessageQueue<IServerMessage> _serverMessageQueue;
     private readonly ILogger _logger;
     private readonly IAnsiConsole _console;
     private readonly IConsoleAccessor _consoleAccessor;
     private readonly Dictionary<string, AppCommand> _appCommands;
-    private readonly ConcurrentQueue<MessageCommand> _messages = new();
+    private readonly ConcurrentQueue<TextReceived> _messages = new();
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly UnlockCommand _unlockCommand;
 
@@ -29,7 +29,7 @@ public class ConsoleApp : IHostedService
 
     public ConsoleApp(ILogger<ConsoleApp> logger,
         IConsoleAccessor consoleAccessor,
-        IMessageQueue<IServerCommand> serverMessageQueue,
+        IMessageQueue<IServerMessage> serverMessageQueue,
         [FromKeyedServices(MainMenu)] IEnumerable<AppCommand> appCommands,
         UnlockCommand unlockCommand,
         IHostApplicationLifetime appLifetime)
@@ -125,7 +125,7 @@ public class ConsoleApp : IHostedService
         {
             await foreach (var command in _serverMessageQueue.DequeueAllAsync(cancellationToken))
             {
-                if (command is not MessageCommand message)
+                if (command is not TextReceived message)
                 {
                     _logger.LogWarning("Unsupported command type {Type}", command.GetType().Name);
                     continue;
