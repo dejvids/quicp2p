@@ -36,7 +36,7 @@ public class UnlockCommand(
         Console.Clear();
         if (certificate is null)
         {
-            return CommandResult.Fail;
+            return CommandResult.Error;
         }
         
         await _messageQueue.EnqueueAsync(new Unlocked(certificate.RawData));
@@ -79,7 +79,7 @@ public class UnlockCommand(
             {
                 Logger.LogError(e, "Failed to load certificate own certificate");
                 Console.MarkupLine("[red]Incorrect password.[/]");
-                retry = await Console.ConfirmAsync("Try again.", cancellationToken: cancellationToken);
+                retry = await ConsoleAccessor.ConfirmAsync("Try again?", true, cancellationToken);
                 Console.Clear();
             }
         }

@@ -45,6 +45,7 @@ public class UnlockCommandTests : AppCommandTestsBase
     private readonly IFileSystem _fileSystem = Substitute.For<IFileSystem>();
     private readonly ILogger<UnlockCommand> _logger = Substitute.For<ILogger<UnlockCommand>>();
     private readonly IOptions<CertificateOptions> _certificateOptions = Substitute.For<IOptions<CertificateOptions>>();
+    private readonly IPrompt<string> _passwordPrompt;
 
     public UnlockCommandTests()
     {
@@ -60,10 +61,10 @@ public class UnlockCommandTests : AppCommandTestsBase
             KeyPath = KeyPath
         });
 
-        var passwordPrompt = Substitute.For<IPrompt<string>>();
-        passwordPrompt.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>())
+        _passwordPrompt = Substitute.For<IPrompt<string>>();
+        _passwordPrompt.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>())
             .Returns(Password);
-        ConsoleAccessor.PasswordPrompt(Arg.Any<string>()).Returns(passwordPrompt);
+        ConsoleAccessor.PasswordPrompt(Arg.Any<string>()).Returns(_passwordPrompt);
     }
 
     [Fact]
@@ -122,5 +123,24 @@ public class UnlockCommandTests : AppCommandTestsBase
             Arg.Any<string>(),
             Arg.Is<Encoding>(encoding => encoding == Encoding.UTF8),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task should_return_failed_status_and_exit_if_cert_not_found()
+    {
+        _passwordPrompt.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>())
+            .Returns("incorrect password");
+
+        var unlockCommand = new UnlockCommand(_logger, 
+            ConsoleAccessor,
+            Substitute.For<IMessageQueue<IClientMessage>>(), 
+            _certificateOptions, 
+            Substitute.For<IPeerClientFactory>(),
+            _fileSystem);
+        
+        var result = await  unlockCommand.Execute(CancellationToken);
+        
+        Assert.False(result.IsSuccess);
+        Assert.True(result.Exit);
     }
 }

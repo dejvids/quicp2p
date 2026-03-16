@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using QuicPeer.AppCommands;
 using QuicPeer.Common.Messaging;
 using QuicPeer.Common.Messaging.ServerQueue;
 using QuicPeer.Tests.AppCommands;
@@ -134,6 +135,25 @@ public sealed class ConsoleAppTests : IDisposable
         await consoleApp.AppRunner;
         
         await AppCommandsMock.ShowDataCommand.Received().Execute(Arg.Any<IEnumerable<TextReceived>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task should_exit_if_could_not_unlock()
+    {
+        var appLifetime = Substitute.For<IHostApplicationLifetime>();
+        var unlockCommand = AppCommandsMock.UnlockCommand;
+        unlockCommand.Execute(Arg.Any<CancellationToken>()).Returns(CommandResult.Error);
+        var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(),
+            _consoleAccessor,
+            Substitute.For<IMessageQueue<IServerMessage>>(),
+            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+            unlockCommand,
+            appLifetime);
+
+        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.AppRunner;
+        
+        appLifetime.Received(1).StopApplication();
     }
     
     public void Dispose()
