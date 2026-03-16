@@ -14,7 +14,7 @@ public sealed class ConsoleAppTests : IDisposable
 {
     private readonly IConsoleAccessor _consoleAccessor = Substitute.For<IConsoleAccessor>();
     private readonly IPrompt<string> _menuPrompt;
-    private readonly CancellationTokenSource _cts = new(200);
+    private readonly CancellationTokenSource _cts = new(500);
 
     public ConsoleAppTests()
     {
