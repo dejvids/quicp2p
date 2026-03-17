@@ -14,7 +14,7 @@ public sealed class ConsoleAppTests : IDisposable
 {
     private readonly IConsoleAccessor _consoleAccessor = Substitute.For<IConsoleAccessor>();
     private readonly IPrompt<string> _menuPrompt;
-    private readonly CancellationTokenSource _cts = new(500);
+    private readonly CancellationTokenSource _cts = new(200);
 
     public ConsoleAppTests()
     {
@@ -96,7 +96,8 @@ public sealed class ConsoleAppTests : IDisposable
             AppCommandsMock.UnlockCommand, 
             Substitute.For<IHostApplicationLifetime>());
 
-        _ = consoleApp.StartAsync(_cts.Token);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        _ = consoleApp.StartAsync(cts.Token);
         await consoleApp.AppRunner;
         
         await _menuPrompt.Received(1).ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>());
