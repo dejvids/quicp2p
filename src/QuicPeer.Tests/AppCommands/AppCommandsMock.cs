@@ -12,43 +12,19 @@ namespace QuicPeer.Tests.AppCommands;
 
 public static class AppCommandsMock
 {
-    public static ConnectCommand ConnectCommand { get; }
-    public static ShowDataCommand ShowDataCommand { get; }
-    public static UnlockCommand UnlockCommand { get; }
+    public static ConnectCommand ConnectCommand => 
+        MockCommand<ConnectCommand, ConnectCommandMock>();
 
-    static AppCommandsMock()
-    {
-        var connectCommand = new ConnectCommandMock();
-        var showDataCommand = new ShowDataCommandMock();
-        var unlockCommand = new UnlockCommandMock();
+    public static ShowDataCommand ShowDataCommand => 
+        MockCommand<ShowDataCommand, ShowDataCommandMock>();
 
-        ConnectCommand = Substitute.For<ConnectCommandMock>();
-        ShowDataCommand = Substitute.For<ShowDataCommandMock>();
-        UnlockCommand = Substitute.For<UnlockCommandMock>();
-
-        
-        ConnectCommand.CommandName.Returns(connectCommand.CommandName);
-        ShowDataCommand.CommandName.Returns(showDataCommand.CommandName);
-        UnlockCommand.CommandName.Returns(unlockCommand.CommandName);
-        UnlockCommand.Execute(Arg.Any<CancellationToken>()).Returns(CommandResult.Success);
-    }
+    public static UnlockCommand UnlockCommand => 
+        MockCommand<UnlockCommand, UnlockCommandMock>();
 
     public class ConnectCommandMock : ConnectCommand
     {
-        public static SendCommand SendCommand { get; }
-        public static SendFileCommand SendFileCommand { get; }
-
-        static ConnectCommandMock()
-        {
-            var sendCommand = new SendCommandMock();
-            var sendFileCommand = new SendFileCommandMock();
-
-            SendCommand = Substitute.For<SendCommandMock>();
-            SendFileCommand = Substitute.For<SendFileCommandMock>();
-
-            SendCommand.CommandName.Returns(sendCommand.CommandName);
-            SendFileCommand.CommandName.Returns(sendFileCommand.CommandName);
-        }
+        public static SendCommand SendCommand => MockCommand<SendCommand, SendCommandMock>();
+        public static SendFileCommand SendFileCommand => MockCommand<SendFileCommand, SendFileCommandMock>();
 
         public ConnectCommandMock()
             : base(Substitute.For<ILogger<ConnectCommand>>(), 
@@ -106,5 +82,17 @@ public static class AppCommandsMock
         {
         }
     }
+    private static TCommand MockCommand<TCommand, TMock>()
+       where TMock : AppCommand, TCommand, new()
+    {
+        var command = new TMock();
+        var mock = Substitute.For<TMock>();
+        mock.Execute(Arg.Any<CancellationToken>())
+            .Returns(CommandResult.Success);
 
+        mock.CommandName.Returns(command.CommandName);
+        mock.CommandName.Returns(mock.CommandName);
+
+        return mock;
+    }
 }

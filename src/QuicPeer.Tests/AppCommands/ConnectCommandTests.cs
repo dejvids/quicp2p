@@ -68,7 +68,7 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
     [Fact]
     public async Task should_execute_send_subcommand()
     {
-
+        var sendCommand = ConnectCommandMock.SendCommand;
         var subMenu = Substitute.For<IPrompt<string>>();
         subMenu.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs("Send");
 
@@ -78,17 +78,19 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
 
         var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
-                [ConnectCommandMock.SendCommand,
+                [sendCommand,
                 ConnectCommandMock.SendFileCommand]);
         
         await command.Execute(CancellationToken);
 
-        await ConnectCommandMock.SendCommand.Received().Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
+        await sendCommand.Received().Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task should_execute_send_file_subcommand()
     {
+        var sendCommand = ConnectCommandMock.SendCommand;
+        var sendFileCommand = ConnectCommandMock.SendFileCommand;
         var subMenu = Substitute.For<IPrompt<string>>();
         subMenu.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs("Send file");
@@ -99,20 +101,22 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
 
         var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
-                [ConnectCommandMock.SendCommand,
-                ConnectCommandMock.SendFileCommand]);
+                [sendCommand,
+                sendFileCommand]);
         
         await command.Execute(CancellationToken);
 
-        await ConnectCommandMock.SendFileCommand
+        await sendFileCommand
             .Received().Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
-        await ConnectCommandMock.SendCommand
+        await sendCommand
             .Received(0).Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
     }
     
     [Fact]
     public async Task should_exit_command_when_disconnect_option_selected()
     {
+        var sendFilecommand = ConnectCommandMock.SendFileCommand;
+        var sendCommand = ConnectCommandMock.SendCommand;
         var subMenu = Substitute.For<IPrompt<string>>();
         subMenu.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs("Disconnect");
@@ -130,14 +134,14 @@ public sealed class ConnectCommandTests : AppCommandTestsBase
 
         var command = new ConnectCommand(_logger, ConsoleAccessor,
                 _peerConnector,
-                [ConnectCommandMock.SendCommand,
-                ConnectCommandMock.SendFileCommand]);
+                [sendCommand,
+                sendFilecommand]);
         
         await command.Execute(CancellationToken);
 
-        await ConnectCommandMock.SendFileCommand
+        await sendFilecommand
             .Received(0).Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
-        await ConnectCommandMock.SendCommand
+        await sendCommand
             .Received(0).Execute(Arg.Any<IPeerClient>(), Arg.Any<CancellationToken>());
 
         await subMenu

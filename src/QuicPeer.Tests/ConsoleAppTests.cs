@@ -33,7 +33,7 @@ public sealed class ConsoleAppTests : IDisposable
             AppCommandsMock.UnlockCommand,
             Substitute.For<IHostApplicationLifetime>());
 
-        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
         Assert.Equal(Encoding.UTF8, Console.OutputEncoding);
         Assert.Equal(Encoding.UTF8, Console.InputEncoding);
@@ -48,7 +48,7 @@ public sealed class ConsoleAppTests : IDisposable
            AppCommandsMock.UnlockCommand, 
            Substitute.For<IHostApplicationLifetime>());
 
-        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
         _consoleAccessor.Received(1).SelectionPrompt(
             Arg.Is<IList<string>>(o => 
@@ -71,13 +71,14 @@ public sealed class ConsoleAppTests : IDisposable
             });
         });
 
-        var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
+        var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), 
+            _consoleAccessor,
             serverMessageQueue,
-            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
-            AppCommandsMock.UnlockCommand, 
+            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand],
+            AppCommandsMock.UnlockCommand,
             Substitute.For<IHostApplicationLifetime>());
-        
-        _ = consoleApp.StartAsync(cts.Token);
+
+        await consoleApp.StartAsync(cts.Token);
         await consoleApp.AppRunner;
         serverMessageQueue.Received().DequeueAllAsync(Arg.Any<CancellationToken>());
 
@@ -97,7 +98,7 @@ public sealed class ConsoleAppTests : IDisposable
             Substitute.For<IHostApplicationLifetime>());
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-        _ = consoleApp.StartAsync(cts.Token);
+        await consoleApp.StartAsync(cts.Token);
         await consoleApp.AppRunner;
         
         await _menuPrompt.Received(1).ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>());
@@ -107,35 +108,37 @@ public sealed class ConsoleAppTests : IDisposable
     [Fact]
     public async Task should_call_connect_command()
     {
+        var connectCommand = AppCommandsMock.ConnectCommand;
         _menuPrompt.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs("Connect");
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(),
             _consoleAccessor,
             Substitute.For<IMessageQueue<IServerMessage>>(),
-            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+            [connectCommand, AppCommandsMock.ShowDataCommand], 
             AppCommandsMock.UnlockCommand,
             Substitute.For<IHostApplicationLifetime>());
 
-        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
         
-        await AppCommandsMock.ConnectCommand.Received().Execute(Arg.Any<CancellationToken>());
+        await connectCommand.Received().Execute(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task should_call_data_command()
     {
+        var showDataCommand = AppCommandsMock.ShowDataCommand;
         _menuPrompt.ShowAsync(Arg.Any<IAnsiConsole>(), Arg.Any<CancellationToken>()).ReturnsForAnyArgs("Data");
         var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(),
             _consoleAccessor,
             Substitute.For<IMessageQueue<IServerMessage>>(),
-            [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand], 
+            [AppCommandsMock.ConnectCommand, showDataCommand], 
             AppCommandsMock.UnlockCommand,
             Substitute.For<IHostApplicationLifetime>());
 
-        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
         
-        await AppCommandsMock.ShowDataCommand.Received().Execute(Arg.Any<IEnumerable<TextReceived>>(), Arg.Any<CancellationToken>());
+        await showDataCommand.Received().Execute(Arg.Any<IEnumerable<TextReceived>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -151,7 +154,7 @@ public sealed class ConsoleAppTests : IDisposable
             unlockCommand,
             appLifetime);
 
-        _ = consoleApp.StartAsync(_cts.Token);
+        await consoleApp.StartAsync(_cts.Token);
         await consoleApp.AppRunner;
         
         appLifetime.Received(1).StopApplication();
