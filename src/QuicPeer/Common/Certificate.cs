@@ -20,11 +20,6 @@ public sealed class Certificate : IDisposable
         Value = GenerateSelfSigned(options, timeProvider);
     }
 
-    public Certificate(X509Certificate certificate)
-    {
-        Value = new X509Certificate2(certificate);
-    }
-
     public byte[] GetPfx() => 
         Value.Export(X509ContentType.Pfx);
     

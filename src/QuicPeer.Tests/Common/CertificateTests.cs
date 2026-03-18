@@ -46,7 +46,7 @@ public class CertificateTests
             f7:98:65:f8:3f:5c:b6:f0:d7:68:1c:59:5f:32:f5:9a:33:4e
         """;
 
-    private const string Base64 = """
+    public const string Base64 = """
                                   MIIBhDCCASmgAwIBAgIUCy2CIbQyFXtgD7FBfoY9uUkUbPEwCgYIKoZIzj0EAwIw
                                   FzEVMBMGA1UEAwwMcXVpY3AycC50ZXN0MB4XDTI2MDIxMDIxNDEzNFoXDTM2MDIw
                                   ODIxNDEzNFowFzEVMBMGA1UEAwwMcXVpY3AycC50ZXN0MFkwEwYHKoZIzj0CAQYI

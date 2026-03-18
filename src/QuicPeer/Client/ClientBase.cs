@@ -53,6 +53,6 @@ public abstract class ClientBase
     private bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain,
         SslPolicyErrors sslPolicyErrors) =>
         certificate is not null &&
-        !new Certificate(certificate).IsExpired(TimeProvider.System) &&
+        !new Certificate(new X509Certificate2(certificate)).IsExpired(TimeProvider.System) &&
         (!Options.ValidateFullChain || sslPolicyErrors == SslPolicyErrors.None);
 }

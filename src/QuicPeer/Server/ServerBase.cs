@@ -126,7 +126,7 @@ public abstract class ServerBase : BackgroundService
                     return false;
                 }
 
-                var remoteCertificate = new Certificate(certificate);
+                var remoteCertificate = new Certificate(new X509Certificate2(certificate));
 
                 return _peersStore.Contains(remoteCertificate) && 
                        !remoteCertificate.IsExpired(TimeProvider.System) &&
