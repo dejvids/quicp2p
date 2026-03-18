@@ -29,6 +29,7 @@ public class ServerBaseTests
         }
         catch
         {
+            // ignored
         }
 
         messageQueue.Received().DequeueAllAsync(Arg.Any<CancellationToken>());
@@ -51,6 +52,7 @@ public class ServerBaseTests
         }
         catch
         {
+            // ignored
         }
 
         Assert.False(server.IsListening);
@@ -67,7 +69,7 @@ public class ServerBaseTests
 
         var messageQueue = Substitute.For<IMessageQueue<IClientMessage>>();
         messageQueue.DequeueAllAsync().ReturnsForAnyArgs(_ => AsyncEnumerable.Range(1, 1)
-        .Select(_ => new Unlocked(GetCertificateData())));
+        .Select(_ => new Unlocked(Convert.FromBase64String(CertificateTests.Pfx), CertificateTests.Password)));
         var server = new TestServer(options,
             Substitute.For<ILogger>(),
             Substitute.For<IPeersStore>(),
@@ -82,9 +84,9 @@ public class ServerBaseTests
         }
         catch
         {
+            // ignored
         }
+
         Assert.True(server.IsListening);
     }
-
-    private static byte[] GetCertificateData() => Convert.FromBase64String(CertificateTests.Base64);
 }
