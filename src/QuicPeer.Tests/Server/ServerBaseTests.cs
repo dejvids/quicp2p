@@ -12,17 +12,6 @@ namespace QuicPeer.Tests.Server;
 public class ServerBaseTests
 {
     [Fact]
-    public async Task should_start_server()
-    {
-        var server = new TestServer(Substitute.For<IOptions<ServerOptions>>(),
-            Substitute.For<ILogger>(),
-            Substitute.For<IPeersStore>(),
-            Substitute.For<IMessageQueue<IClientMessage>>());
-
-        await server.StartAsync(CancellationToken.None);
-    }
-
-    [Fact]
     public async Task should_listen_for_console_messages()
     {
         var messageQueue = Substitute.For<IMessageQueue<IClientMessage>>();
@@ -77,5 +66,5 @@ public class ServerBaseTests
         Assert.True(server.IsListening);
     }
 
-    private byte[] GetCertificateData() => Convert.FromBase64String(CertificateTests.Base64);
+    private static byte[] GetCertificateData() => Convert.FromBase64String(CertificateTests.Base64);
 }

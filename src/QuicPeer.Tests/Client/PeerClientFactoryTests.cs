@@ -26,7 +26,7 @@ public class PeerClientFactoryTests
         var clientFactory = new PeerClientFactory(Substitute.For<IOptions<ClientOptions>>(), 
             Substitute.For<IChecksumProvider>());
         
-        clientFactory.SetCertificate(new X509Certificate2());
+        clientFactory.SetCertificate(Substitute.For<X509Certificate2>());
         
         var client = clientFactory.CreatePeerClient(new IPEndPoint(IPAddress.Loopback, 500));
         
