@@ -32,15 +32,15 @@ public class UnlockCommand(
         {
             await CreateCertificate(cancellationToken);
         }
-        var certificate = await LoadCertificate(cancellationToken);
+        var (certificate, password) = await LoadCertificate(cancellationToken);
         Console.Clear();
         if (certificate is null)
         {
             return CommandResult.Error;
         }
         
-        await _messageQueue.EnqueueAsync(new Unlocked(certificate.RawData));
-        _peerClientFactory.SetCertificate(certificate);
+        await _messageQueue.EnqueueAsync(new Unlocked(certificate, password));
+        _peerClientFactory.SetCertificate(certificate, password);
         return CommandResult.Success;
     }
 
@@ -60,7 +60,7 @@ public class UnlockCommand(
         await CreateSelfSignedCertificate(passphrase);
     }
 
-    private async Task<X509Certificate2?> LoadCertificate(CancellationToken cancellationToken)
+    private async Task<(byte[]?, string password)> LoadCertificate(CancellationToken cancellationToken)
     {
         var passwordPrompt = ConsoleAccessor.PasswordPrompt("Password:");
         var retry = true;
@@ -73,7 +73,9 @@ public class UnlockCommand(
                 var certPem = await _fileSystem.File.ReadAllTextAsync(_certificateOptions.CertPath, cancellationToken);
                 var keyPem = await _fileSystem.File.ReadAllTextAsync(_certificateOptions.KeyPath, cancellationToken);
 
-                return X509Certificate2.CreateFromEncryptedPem(certPem, keyPem, password);
+                var cert = X509Certificate2.CreateFromEncryptedPem(certPem, keyPem, password);
+                var pfx = cert.Export(X509ContentType.Pfx, password);
+                return (pfx,  password);
             }
             catch (Exception e)
             {
@@ -84,7 +86,7 @@ public class UnlockCommand(
             }
         }
         
-        return null;
+        return (null, string.Empty);
     }
     
     private async Task CreateSelfSignedCertificate(string passphrase)

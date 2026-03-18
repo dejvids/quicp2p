@@ -1,5 +1,4 @@
 ﻿using System.IO.Abstractions;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -81,7 +80,7 @@ public class UnlockCommandTests : AppCommandTestsBase
 
         await unlockCommand.Execute(CancellationToken);
         
-        clientsFactory.Received(1).SetCertificate(Arg.Any<X509Certificate2>());
+        clientsFactory.Received(1).SetCertificate(Arg.Any<byte[]>(), Arg.Any<string>());
     }
     
     [Fact]

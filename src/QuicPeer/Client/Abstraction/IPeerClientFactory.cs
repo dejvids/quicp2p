@@ -5,6 +5,6 @@ namespace QuicPeer.Client.Abstraction;
 
 public interface IPeerClientFactory
 {
-    void SetCertificate(X509Certificate2 certificate);
+    void SetCertificate(byte[] certificate, string password);
     IPeerClient CreatePeerClient(IPEndPoint remoteEndpoint);
 }

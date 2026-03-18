@@ -62,7 +62,7 @@ public abstract class ServerBase : BackgroundService
             {
                 if (message is Unlocked unlockCommand)
                 {
-                    var x509 = X509CertificateLoader.LoadCertificate(unlockCommand.Certificate);
+                    var x509 = X509CertificateLoader.LoadPkcs12(unlockCommand.Certificate, unlockCommand.Password);
                     CertificateLoaded.SetResult(x509);
                 }
             }
@@ -112,7 +112,7 @@ public abstract class ServerBase : BackgroundService
 
     private void AddClientAuthentication(QuicServerConnectionOptions connectionOptions)
     {
-        connectionOptions.ServerAuthenticationOptions.ClientCertificateRequired = true;
+        connectionOptions.ServerAuthenticationOptions.ClientCertificateRequired = Options.RequireClientCertificate;
         connectionOptions.ServerAuthenticationOptions.RemoteCertificateValidationCallback =
             (_, certificate, _, sslPolicyErrors) =>
             {

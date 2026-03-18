@@ -21,8 +21,8 @@ public class PeerClientFactory(IOptions<ClientOptions> options, IChecksumProvide
         return new PeerClient(options, remoteEndpoint, _certificate, checksumProvider);
     }
 
-    public void SetCertificate(X509Certificate2 certificate)
+    public void SetCertificate(byte[] certificate, string password)
     {
-        _certificate = certificate;
+        _certificate = X509CertificateLoader.LoadPkcs12(certificate, password);
     }
 }

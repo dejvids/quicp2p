@@ -1,10 +1,10 @@
 ﻿using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using QuicPeer.Client;
 using QuicPeer.Common;
 using QuicPeer.Options;
+using QuicPeer.Tests.Common;
 
 namespace QuicPeer.Tests.Client;
 
@@ -26,7 +26,7 @@ public class PeerClientFactoryTests
         var clientFactory = new PeerClientFactory(Substitute.For<IOptions<ClientOptions>>(), 
             Substitute.For<IChecksumProvider>());
         
-        clientFactory.SetCertificate(Substitute.For<X509Certificate2>());
+        clientFactory.SetCertificate(Convert.FromBase64String(CertificateTests.Pfx), CertificateTests.Password);
         
         var client = clientFactory.CreatePeerClient(new IPEndPoint(IPAddress.Loopback, 500));
         
