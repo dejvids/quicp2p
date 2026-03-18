@@ -1,6 +1,7 @@
-﻿using System.IO.Abstractions;
-using System.Net.Quic;
+﻿using System.Net.Quic;
 using Microsoft.Extensions.Options;
+using QuicPeer.Common.Messaging;
+using QuicPeer.Common.Messaging.ClientQueue;
 using QuicPeer.Options;
 
 namespace QuicPeer.Server;
@@ -11,8 +12,8 @@ public sealed class PeerServer(
     IServiceScopeFactory scopeFactory,
     IHostApplicationLifetime appLifetime,
     IPeersStore peersStore,
-    IFileSystem fileSystem)
-    : ServerBase(configuration, logger, peersStore, fileSystem)
+    IMessageQueue<IClientMessage> messageQueue)
+    : ServerBase(configuration, logger, peersStore, messageQueue)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

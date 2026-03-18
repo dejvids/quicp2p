@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using NSubstitute;
 using QuicPeer.AppCommands;
-using QuicPeer.Server.Commands;
+using QuicPeer.Common.Messaging.ServerQueue;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
@@ -16,7 +16,7 @@ public class ShowDataCommandTests : AppCommandTestsBase
     {
         var command = new ShowDataCommand(_logger, ConsoleAccessor);
         
-        await command.Execute(Enumerable.Empty<MessageCommand>(), CancellationToken.None);
+        await command.Execute(Enumerable.Empty<TextReceived>(), CancellationToken.None);
         
         ConsoleAccessor.Console.Received(1).Write(Arg.Any<Text>());
     }
@@ -26,7 +26,7 @@ public class ShowDataCommandTests : AppCommandTestsBase
     {
         const int count = 3;
         var messages = Enumerable.Range(1, count)
-            .Select(i => new MessageCommand("Sender", $"Message {i}", new TimeOnly()));
+            .Select(i => new TextReceived("Sender", $"Message {i}", new TimeOnly()));
         
         var command = new ShowDataCommand(_logger, ConsoleAccessor);
         

@@ -5,14 +5,10 @@ using QuicPeer.Common.Exceptions;
 using Spectre.Console;
 namespace QuicPeer.AppCommands;
 
-public class SendFileCommand : AppCommand<IPeerClient>
+public class SendFileCommand(ILogger<SendFileCommand> logger, IConsoleAccessor consoleAccessor, IFileSystem fileSystem)
+    : AppCommand<IPeerClient>(logger, consoleAccessor)
 {
-    private readonly IFileSystem _fileSystem;
-    public SendFileCommand(ILogger<SendFileCommand> logger, IConsoleAccessor consoleAccessor, IFileSystem fileSystem) 
-        : base(logger, consoleAccessor)
-    {
-        _fileSystem = fileSystem;
-    }
+    private readonly IFileSystem _fileSystem = fileSystem;
 
     public override string CommandName => "Send file";
     public override async ValueTask<CommandResult> Execute(IPeerClient peerClient, CancellationToken cancellationToken)

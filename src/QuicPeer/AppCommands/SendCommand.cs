@@ -5,13 +5,9 @@ using Spectre.Console;
 
 namespace QuicPeer.AppCommands;
 
-public class SendCommand : AppCommand<IPeerClient>
+public class SendCommand(ILogger<SendCommand> logger, IConsoleAccessor consoleAccessor)
+    : AppCommand<IPeerClient>(logger, consoleAccessor)
 {
-    public SendCommand(ILogger<SendCommand> logger, IConsoleAccessor consoleAccessor) 
-        : base(logger, consoleAccessor)
-    {
-    }
-
     public override string CommandName => "Send";
 
     public override async ValueTask<CommandResult> Execute(IPeerClient peerClient, CancellationToken cancellationToken)

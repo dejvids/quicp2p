@@ -6,6 +6,9 @@ public class ConsoleAccessor : IConsoleAccessor
 {
     public IAnsiConsole Console => AnsiConsole.Console;
 
+    public IPrompt<string> PasswordPrompt(string prompt) => 
+        new TextPrompt<string>(prompt).Secret();
+
     public IPrompt<string> ConfirmationPrompt(string prompt = "Continue") => 
         new TextPrompt<string>(prompt).AllowEmpty();
 

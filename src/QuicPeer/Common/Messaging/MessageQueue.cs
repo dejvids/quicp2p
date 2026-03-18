@@ -1,6 +1,6 @@
 ﻿using System.Threading.Channels;
 
-namespace QuicPeer;
+namespace QuicPeer.Common.Messaging;
 
 public abstract class MessageQueue<T> : IMessageQueue<T>
 {

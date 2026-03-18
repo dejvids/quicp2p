@@ -2,16 +2,17 @@
 using System.Text;
 using QuicPeer.Common;
 using QuicPeer.Common.Dto;
-using QuicPeer.Server.Commands;
+using QuicPeer.Common.Messaging;
+using QuicPeer.Common.Messaging.ServerQueue;
 
 namespace QuicPeer.Server;
 
 public class ConnectionManager
 {
     private readonly IFilesReceiver _filesReceiver;
-    private readonly IMessageQueue<IServerCommand> _messageQueue;
+    private readonly IMessageQueue<IServerMessage> _messageQueue;
 
-    public ConnectionManager(IFilesReceiver filesReceiver, IMessageQueue<IServerCommand> messageQueue)
+    public ConnectionManager(IFilesReceiver filesReceiver, IMessageQueue<IServerMessage> messageQueue)
     {
         _filesReceiver = filesReceiver;
         _messageQueue = messageQueue;
@@ -69,7 +70,7 @@ public class ConnectionManager
         var readBytes = await stream.ReadAsync(buffer, ct);
         var payload = buffer.AsSpan(0, readBytes);
         var message = Encoding.UTF8.GetString(payload);
-        await _messageQueue.EnqueueAsync(new MessageCommand(remoteEndpoint,
+        await _messageQueue.EnqueueAsync(new TextReceived(remoteEndpoint,
             message, TimeOnly.FromDateTime(DateTime.Now)));
 
         if (TryParseToFileMetadata(message, out var metadata) && metadata is not null)

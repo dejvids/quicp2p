@@ -1,4 +1,4 @@
-﻿namespace QuicPeer;
+﻿namespace QuicPeer.Common.Messaging;
 
 public interface IMessageQueue<T>
 {

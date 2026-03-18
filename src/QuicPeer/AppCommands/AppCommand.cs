@@ -2,19 +2,13 @@
 
 namespace QuicPeer.AppCommands;
 
-public abstract class AppCommand
+public abstract class AppCommand(ILogger logger, IConsoleAccessor consoleAccessor)
 {
     public abstract string CommandName { get; }
 
-    protected ILogger Logger { get; }
-    protected IConsoleAccessor ConsoleAccessor { get; }
+    protected ILogger Logger { get; } = logger;
+    protected IConsoleAccessor ConsoleAccessor { get; } = consoleAccessor;
     protected IAnsiConsole Console => ConsoleAccessor.Console;
-
-    protected AppCommand(ILogger logger, IConsoleAccessor consoleAccessor)
-    {
-        Logger = logger;
-        ConsoleAccessor = consoleAccessor;
-    }
 
     public abstract ValueTask<CommandResult> Execute(CancellationToken cancellationToken);
 }
