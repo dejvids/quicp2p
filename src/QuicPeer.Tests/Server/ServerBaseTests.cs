@@ -23,8 +23,15 @@ public class ServerBaseTests
         var cts = new CancellationTokenSource(200);
 
         await server.StartAsync(cts.Token);
+        try
+        {
+            await server.ExecuteTask!;
+        }
+        catch
+        {
+        }
 
-        messageQueue.Received().Received();
+        messageQueue.Received().DequeueAllAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

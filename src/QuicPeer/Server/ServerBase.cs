@@ -44,6 +44,7 @@ public abstract class ServerBase : BackgroundService
         {
             _ = Task.Run(async () => await ListenConsoleMessages(stoppingToken), stoppingToken);
             EnsureProtocolSupport();
+            stoppingToken.Register(CertificateLoaded.SetCanceled);
             var serverCertificate = await CertificateLoaded.Task;
             var options = BootstrapServer(serverCertificate);
             await RunServerInternal(options, stoppingToken);
