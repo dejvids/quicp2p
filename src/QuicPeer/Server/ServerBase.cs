@@ -24,7 +24,7 @@ public abstract class ServerBase : BackgroundService
         _messageQueue = messageQueue;
         Logger = logger;
         Options = serverOptions.Value;
-        CertificateLoaded = new TaskCompletionSource<X509Certificate2>();
+        CertificateLoaded = new TaskCompletionSource<X509Certificate2>(TaskCreationOptions.AttachedToParent);
     }
 
     protected ILogger Logger { get; }
@@ -44,8 +44,7 @@ public abstract class ServerBase : BackgroundService
         {
             _ = Task.Run(async () => await ListenConsoleMessages(stoppingToken), stoppingToken);
             EnsureProtocolSupport();
-            stoppingToken.Register(CertificateLoaded.SetCanceled);
-            var serverCertificate = await CertificateLoaded.Task;
+            var serverCertificate = await CertificateLoaded.Task.WaitAsync(stoppingToken);
             var options = BootstrapServer(serverCertificate);
             await RunServerInternal(options, stoppingToken);
         }

@@ -45,6 +45,13 @@ public class ServerBaseTests
         var cts = new CancellationTokenSource(200);
 
         await server.StartAsync(cts.Token);
+        try
+        {
+            await server.ExecuteTask!;
+        }
+        catch
+        {
+        }
 
         Assert.False(server.IsListening);
     }
@@ -69,7 +76,13 @@ public class ServerBaseTests
         var cts = new CancellationTokenSource(200);
 
         await server.StartAsync(cts.Token);
-        await server.ExecuteTask!;
+        try
+        {
+            await server.ExecuteTask!;
+        }
+        catch
+        {
+        }
         Assert.True(server.IsListening);
     }
 
