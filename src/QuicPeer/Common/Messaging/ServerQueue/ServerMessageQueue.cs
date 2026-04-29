@@ -1,5 +1,9 @@
-﻿namespace QuicPeer.Common.Messaging.ServerQueue;
+using System.Threading.Channels;
 
-public class ServerMessageQueue : MessageQueue<IServerMessage>
-{
-}
+namespace QuicPeer.Common.Messaging.ServerQueue;
+
+public class ServerMessageQueue() : MessageQueue<IServerMessage>(
+    Channel.CreateBounded<IServerMessage>(new BoundedChannelOptions(500)
+    {
+        FullMode = BoundedChannelFullMode.DropOldest
+    }));

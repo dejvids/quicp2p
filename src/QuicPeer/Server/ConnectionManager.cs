@@ -40,7 +40,7 @@ public class ConnectionManager
                 }
                 else
                 {
-                    await OnFileStreamOpened(stream, context.GetFileMetadata(stream.Id), ct);
+                    await OnFileStreamOpened(stream, context.ConsumeFileMetadata(stream.Id), ct);
                 }
             }
             finally

@@ -1,36 +1,13 @@
 # Memory & Allocation Audit — Outstanding Items
 
-Findings from the initial scan of `src/QuicPeer/` (Tests excluded). The
-`PeerClient` `CancellationTokenSource` leak (originally item 3) has been
-fixed and is omitted here.
+Findings from the initial scan of `src/QuicPeer/` (Tests excluded).
+Original numbering preserved so cross-references stay stable.
+Completed and omitted:
+- Item 1 — `ConsoleApp._messages` unbounded growth (bounded `ServerMessageQueue` + direct drain in `ShowDataCommand`).
+- Item 2 — `ConnectionContext._files` unbounded growth (`TryRemove` on consume).
+- Item 3 — `PeerClient` `CancellationTokenSource` leak (constructor injection, single owner).
 
 ## High-impact
-
-### 1. `ConsoleApp._messages` grows without bound
-[ConsoleApp.cs:18](../src/QuicPeer/ConsoleApp.cs#L18)
-
-```csharp
-private readonly ConcurrentQueue<TextReceived> _messages = new();
-```
-Every `TextReceived` is enqueued in `ReadServerCommands`
-([ConsoleApp.cs:134](../src/QuicPeer/ConsoleApp.cs#L134)).
-`ShowDataCommand.Execute` only iterates the enumerable — it never
-dequeues. Long-running peers leak one `TextReceived` (plus its UTF-8
-message string) per inbound text forever.
-
-**Fix:** drain via `TryDequeue` while iterating in `ShowDataCommand`, or
-cap the queue size with a ring-buffer.
-
-### 2. `ConnectionContext._files` grows without bound
-[ConnectionContext.cs:11](../src/QuicPeer/Server/ConnectionContext.cs#L11)
-
-`OnFileMetadataReceived` adds an entry per inbound file; nothing removes
-it after the body stream completes. A single long-lived peer connection
-that transfers many files leaks one `FileMetadata` per file.
-
-**Fix:** remove the entry from `_files` after
-`ConnectionManager.OnFileStreamOpened` finishes (try/finally around
-`ReceiveFileAsync`).
 
 ### 4. `_stopwatch` is not reset between sends
 [PeerClient.cs:21,84,86,92](../src/QuicPeer/Client/PeerClient.cs#L21)
@@ -201,5 +178,7 @@ file is left with the `.download` extension.
 
 - No LOH allocations were found — the 80 KB transfer buffer is
   intentionally just under the 85 KB threshold.
-- Items 1, 2, and 5 are the remaining genuine growth-over-time leaks.
+- Item 5 is the remaining genuine growth-over-time concern (one of its
+  three sites — `ReadServerCommands` — was removed as part of the
+  item 1 fix; `ShowMenu` and `ListenConsoleMessages` still apply).
 - Item 7 is the biggest hot-path allocation win.

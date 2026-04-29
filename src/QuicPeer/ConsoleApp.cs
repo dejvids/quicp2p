@@ -1,8 +1,5 @@
-﻿using System.Collections.Concurrent;
 using System.Text;
 using QuicPeer.AppCommands;
-using QuicPeer.Common.Messaging;
-using QuicPeer.Common.Messaging.ServerQueue;
 using Spectre.Console;
 
 namespace QuicPeer;
@@ -10,12 +7,10 @@ namespace QuicPeer;
 public class ConsoleApp : IHostedService
 {
     private const string ExitCommand = "Exit";
-    private readonly IMessageQueue<IServerMessage> _serverMessageQueue;
     private readonly ILogger _logger;
     private readonly IAnsiConsole _console;
     private readonly IConsoleAccessor _consoleAccessor;
     private readonly Dictionary<string, AppCommand> _appCommands;
-    private readonly ConcurrentQueue<TextReceived> _messages = new();
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly UnlockCommand _unlockCommand;
 
@@ -29,7 +24,6 @@ public class ConsoleApp : IHostedService
 
     public ConsoleApp(ILogger<ConsoleApp> logger,
         IConsoleAccessor consoleAccessor,
-        IMessageQueue<IServerMessage> serverMessageQueue,
         [FromKeyedServices(MainMenu)] IEnumerable<AppCommand> appCommands,
         UnlockCommand unlockCommand,
         IHostApplicationLifetime appLifetime)
@@ -37,7 +31,6 @@ public class ConsoleApp : IHostedService
         _logger = logger;
         _consoleAccessor = consoleAccessor;
         _console = consoleAccessor.Console;
-        _serverMessageQueue = serverMessageQueue;
         _appLifetime = appLifetime;
         _unlockCommand = unlockCommand;
 
@@ -59,8 +52,6 @@ public class ConsoleApp : IHostedService
         };
 
         var mainMenu = _consoleAccessor.SelectionPrompt(menuOptions);
-        _ = Task.Factory.StartNew(async () => await ReadServerCommands(cancellationToken), cancellationToken,
-            TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
         try
         {
@@ -102,12 +93,6 @@ public class ConsoleApp : IHostedService
                 continue;
             }
 
-            if (appCommand is ShowDataCommand dataCommand)
-            {
-                await dataCommand.Execute(_messages, cancellationToken);
-                continue;
-            }
-
             result = await appCommand.Execute(cancellationToken);
         }
     }
@@ -117,25 +102,5 @@ public class ConsoleApp : IHostedService
         _console.MarkupLine("Shutting down:");
         _logger.LogInformation("App stopped.");
         return Task.CompletedTask;
-    }
-
-    private async Task ReadServerCommands(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await foreach (var command in _serverMessageQueue.DequeueAllAsync(cancellationToken))
-            {
-                if (command is not TextReceived message)
-                {
-                    _logger.LogWarning("Unsupported command type {Type}", command.GetType().Name);
-                    continue;
-                }
-
-                _messages.Enqueue(message);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
     }
 }
