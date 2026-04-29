@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO.Abstractions;
 using System.Net;
 using System.Net.Quic;
@@ -13,28 +13,37 @@ using QuicPeer.Options;
 
 namespace QuicPeer.Client;
 
-public sealed class PeerClient(
-    IOptions<ClientOptions> options,
-    IPEndPoint remoteEndpoint,
-    X509Certificate2 certificate,
-    IChecksumProvider checksumProvider)
-    : ClientBase(options, certificate), IPeerClient
+public sealed class PeerClient : ClientBase, IPeerClient
 {
-    private bool _disposed;
-    private QuicConnection? _connection;
-    private CancellationTokenSource _cts = new();
+    private readonly IPEndPoint _remoteEndpoint;
+    private readonly IChecksumProvider _checksumProvider;
+    private readonly CancellationTokenSource _cts;
     private readonly Stopwatch _stopwatch = new();
+    private QuicConnection? _connection;
+    private bool _disposed;
+
+    public PeerClient(
+        IOptions<ClientOptions> options,
+        IPEndPoint remoteEndpoint,
+        X509Certificate2 certificate,
+        IChecksumProvider checksumProvider,
+        CancellationTokenSource cts)
+        : base(options, certificate)
+    {
+        _remoteEndpoint = remoteEndpoint;
+        _checksumProvider = checksumProvider;
+        _cts = cts;
+    }
 
     public EndPoint? RemoteEndpoint { get; private set; }
 
-    protected override async Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct)
+    protected override async Task RunClientInternal(QuicClientConnectionOptions options)
     {
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        options.RemoteEndPoint = remoteEndpoint;
-        options.ClientAuthenticationOptions.TargetHost = remoteEndpoint.Address.ToString();
+        options.RemoteEndPoint = _remoteEndpoint;
+        options.ClientAuthenticationOptions.TargetHost = _remoteEndpoint.Address.ToString();
 
-        var connection = await QuicConnection.ConnectAsync(options, ct);
-        await ProbeConnection(connection, ct);
+        var connection = await QuicConnection.ConnectAsync(options, _cts.Token);
+        await ProbeConnection(connection, _cts.Token);
         _connection = connection;
         RemoteEndpoint = _connection.RemoteEndPoint;
     }
@@ -64,7 +73,7 @@ public sealed class PeerClient(
 
         var dataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, _cts.Token);
         var metadataStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, _cts.Token);
-        var checksum = checksumProvider.GetChecksum(file);
+        var checksum = _checksumProvider.GetChecksum(file);
         var metadata = new FileMetadata(file.Name, file.Length, checksum, dataStream.Id);
 
         try
@@ -113,6 +122,11 @@ public sealed class PeerClient(
 
     public async Task DisconnectAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         await _cts.CancelAsync();
         if (_connection is not null)
         {
@@ -127,7 +141,7 @@ public sealed class PeerClient(
         await probeStream.WriteAsync(Memory<byte>.Empty, ct);
         probeStream.CompleteWrites();
     }
-    
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -135,10 +149,17 @@ public sealed class PeerClient(
             return;
         }
         _disposed = true;
-        _cts.Dispose();
-        if (_connection is not null)
+
+        try
         {
-            await _connection.DisposeAsync();
+            if (_connection is not null)
+            {
+                await _connection.DisposeAsync();
+            }
+        }
+        finally
+        {
+            _cts.Dispose();
         }
     }
 }

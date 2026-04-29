@@ -9,10 +9,27 @@ public class PeerConnector(IPeerClientFactory clientFactory) : IPeerConnector
     public async Task<IPeerClient?> Connect(string endpoint, CancellationToken cancellationToken)
     {
         var remoteEndpoint = EndpointParser.Parse(endpoint, DefaultPort);
-        var client = clientFactory.CreatePeerClient(remoteEndpoint);
-        
-        await client.RunClientAsync(cancellationToken);
-        
-        return client;
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        IPeerClient? client = null;
+        try
+        {
+            client = clientFactory.CreatePeerClient(remoteEndpoint, cts);
+            await client.RunClientAsync();
+            return client;
+        }
+        catch
+        {
+            if (client is not null)
+            {
+                await client.DisposeAsync(); // disposes the cts via PeerClient
+            }
+            else
+            {
+                cts.Dispose();
+            }
+
+            throw;
+        }
     }
 }
+
