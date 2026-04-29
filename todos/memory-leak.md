@@ -1,0 +1,205 @@
+# Memory & Allocation Audit — Outstanding Items
+
+Findings from the initial scan of `src/QuicPeer/` (Tests excluded). The
+`PeerClient` `CancellationTokenSource` leak (originally item 3) has been
+fixed and is omitted here.
+
+## High-impact
+
+### 1. `ConsoleApp._messages` grows without bound
+[ConsoleApp.cs:18](../src/QuicPeer/ConsoleApp.cs#L18)
+
+```csharp
+private readonly ConcurrentQueue<TextReceived> _messages = new();
+```
+Every `TextReceived` is enqueued in `ReadServerCommands`
+([ConsoleApp.cs:134](../src/QuicPeer/ConsoleApp.cs#L134)).
+`ShowDataCommand.Execute` only iterates the enumerable — it never
+dequeues. Long-running peers leak one `TextReceived` (plus its UTF-8
+message string) per inbound text forever.
+
+**Fix:** drain via `TryDequeue` while iterating in `ShowDataCommand`, or
+cap the queue size with a ring-buffer.
+
+### 2. `ConnectionContext._files` grows without bound
+[ConnectionContext.cs:11](../src/QuicPeer/Server/ConnectionContext.cs#L11)
+
+`OnFileMetadataReceived` adds an entry per inbound file; nothing removes
+it after the body stream completes. A single long-lived peer connection
+that transfers many files leaks one `FileMetadata` per file.
+
+**Fix:** remove the entry from `_files` after
+`ConnectionManager.OnFileStreamOpened` finishes (try/finally around
+`ReceiveFileAsync`).
+
+### 4. `_stopwatch` is not reset between sends
+[PeerClient.cs:21,84,86,92](../src/QuicPeer/Client/PeerClient.cs#L21)
+
+`_stopwatch` is reused across calls but `Start()` resumes from the
+previous `Elapsed`. The second `SendFileAsync` reports
+`previous + current` time, third reports `previous + current + previous`,
+etc.
+
+**Fix:** use `Stopwatch.StartNew()` (local) per call, or call `Reset()`
+first.
+
+### 5. `Task.Factory.StartNew(async () => ...)` returns `Task<Task>`
+[ConsoleApp.cs:62,67](../src/QuicPeer/ConsoleApp.cs#L62) and
+[ServerBase.cs:45](../src/QuicPeer/Server/ServerBase.cs#L45)
+
+```csharp
+AppRunner = Task.Factory.StartNew(async () => await ShowMenu(...), TaskCreationOptions.LongRunning);
+```
+`AppRunner` completes when the **outer** task starts the inner async
+method, not when the work finishes. Exceptions from
+`ShowMenu`/`ReadServerCommands`/`ListenConsoleMessages` are buried in an
+unobserved inner Task. The `_ = Task.Run(...)` form
+([PeerServer.cs:75](../src/QuicPeer/Server/PeerServer.cs#L75)) is fine;
+these `StartNew` calls are not.
+
+**Fix:** use `Task.Run` (which has an `async`-aware overload) or
+`.Unwrap()` the result.
+
+## Medium-impact
+
+### 6. `OnTextStreamOpened` allocates a 1000-byte buffer per stream and assumes a single `Read`
+[ConnectionManager.cs:67-71](../src/QuicPeer/Server/ConnectionManager.cs#L67)
+
+```csharp
+var buffer = new byte[1000];
+Array.Clear(buffer, 0, buffer.Length);          // redundant: new byte[] is already zeroed
+var readBytes = await stream.ReadAsync(buffer, ct);
+var payload = buffer.AsSpan(0, readBytes);
+var message = Encoding.UTF8.GetString(payload);
+```
+Three problems on one hot path:
+- Fresh allocation per text stream → use
+  `ArrayPool<byte>.Shared.Rent(1000)` with `try/finally Return`.
+- A QUIC `ReadAsync` is **not guaranteed** to return the whole message
+  in one call. A long text or fragmented metadata gets silently
+  truncated, and a multi-byte UTF-8 sequence split across reads decodes
+  incorrectly. Read until `EOF` or use `ReadExactlyAsync` driven by a
+  length prefix.
+- Texts > 1000 bytes are silently dropped.
+
+### 7. `PeersStore.Contains` recomputes SHA-256 on every call
+[PeersStore.cs:26-30](../src/QuicPeer/Server/PeersStore.cs#L26) and
+[Certificate.cs:62](../src/QuicPeer/Common/Certificate.cs#L62)
+
+```csharp
+return _trustedPeers.Any(t => t.GetFingerprint().SequenceEqual(fingerprint));
+```
+`GetFingerprint()` calls `X509Certificate2.GetCertHash(SHA256)` which
+**recomputes the hash and allocates a new `byte[]` every invocation**.
+With N trusted peers, every connection performs N+1 SHA-256s and N+1
+array allocations.
+
+**Fix:** cache the fingerprint as a precomputed `byte[]` (or `string`
+hex) on `Certificate` at construction time, or store a
+`HashSet<string>` keyed on hex fingerprint in `PeersStore`.
+
+### 8. `Encoding.UTF8.GetBytes` + JSON string intermediate
+[PeerClient.cs:52,94-95](../src/QuicPeer/Client/PeerClient.cs#L52)
+
+```csharp
+var payload = Encoding.UTF8.GetBytes(message);                                // SendAsync
+var jsonPayload = System.Text.Json.JsonSerializer.Serialize(metadata);        // SendMetadata
+var payload = Encoding.UTF8.GetBytes(jsonPayload);
+```
+Two allocations where one would do.
+
+**Fix:** use `JsonSerializer.SerializeToUtf8Bytes(metadata)` to skip the
+intermediate `string`. For `SendAsync`, `Encoding.UTF8.GetByteCount` +
+`ArrayPool` rent + `GetBytes(message, span)` would also avoid the
+per-call allocation if `SendAsync` is used in a tight loop.
+
+### 9. `CheckSumProvider` reads the file twice on the receive path
+[CheckSumProvider.cs:9,25](../src/QuicPeer/Common/CheckSumProvider.cs#L9)
+
+`FilesReceiver.ReceiveFileAsync` calls `VerifyChecksum`, which calls
+`GetChecksum`, which opens the file and SHA-256s the entire body — but
+`Stream.CopyToAsync` already streamed the whole file once on receive.
+
+**Fix:** compute the hash incrementally as the file is copied (using
+`IncrementalHash`) to halve the I/O.
+
+### 10. `Certificate` and `PeersStore` use a broken finalizer pattern
+[Certificate.cs:65-80](../src/QuicPeer/Common/Certificate.cs#L65),
+[PeersStore.cs:58-78](../src/QuicPeer/Server/PeersStore.cs#L58)
+
+Both classes call `Dispose()` from the finalizer, and `Dispose()` then
+touches managed references (`Value.Dispose()`,
+`_trustedPeers[i].Dispose()`). Managed objects may already have been
+finalized — accessing them from a finalizer is undefined.
+
+**Fix:** delete both finalizers entirely (the wrapped
+`X509Certificate2` already has its own), or implement the standard
+`Dispose(bool disposing)` pattern that only releases unmanaged handles
+when `disposing == false`.
+
+### 11. `ConnectCommand._subCommands` linear scan per command
+[ConnectCommand.cs:85](../src/QuicPeer/AppCommands/ConnectCommand.cs#L85)
+
+`_subCommands.FirstOrDefault(c => c.CommandName == clientCommand)`
+allocates a closure and walks an array on every menu pick.
+
+**Fix:** build a `Dictionary<string, AppCommand<IPeerClient>>` in the
+constructor, like `ConsoleApp` does at
+[ConsoleApp.cs:44](../src/QuicPeer/ConsoleApp.cs#L44).
+
+## Low-impact / cosmetic
+
+### 12. `Certificate.IsExpired` parses a string instead of using `NotAfter`
+[Certificate.cs:57-60](../src/QuicPeer/Common/Certificate.cs#L57)
+
+`Value.GetExpirationDateString()` allocates and `DateTimeOffset.TryParse`
+does culture-sensitive parsing. `Value.NotAfter` is a `DateTime`
+directly — no allocation, no culture risk.
+
+### 13. `ShowDataCommand` allocates an extra list
+[ShowDataCommand.cs:14](../src/QuicPeer/AppCommands/ShowDataCommand.cs#L14)
+
+`var messagesList = messages.ToList()`. The caller already passes
+`ConcurrentQueue<TextReceived>`. Iterate it directly and check `IsEmpty`
+instead.
+
+### 14. Misleading `BufferSize` comment
+[TransferOptions.cs:7](../src/QuicPeer/Options/TransferOptions.cs#L7)
+
+`81_920 //Default: 81 920KB` — the value is 80 KiB (bytes), not
+81 920 KB. The number is intentionally below the LOH threshold
+(~85,000 bytes), which is correct, but the comment misrepresents it by
+~1000×.
+
+### 15. `Array.Clear` on freshly allocated array
+[ConnectionManager.cs:69](../src/QuicPeer/Server/ConnectionManager.cs#L69)
+
+`new byte[1000]` is zero-initialized by the runtime; the `Array.Clear`
+call is dead code. (Folded into item 6's fix.)
+
+### 16. `EndpointParser.TryParseDnsEndpoint` returns `iPAddresses.Last()`
+[EndpointParser.cs:51](../src/QuicPeer/Client/EndpointParser.cs#L51)
+
+Not a memory issue, but `.Last()` on an array allocates an enumerator
+path; use `iPAddresses[^1]` for indexed access. Splitting on `":"` also
+breaks for IPv6 hostnames-with-port forms.
+
+### 17. Single-instance `Stopwatch` field
+[PeerClient.cs:21](../src/QuicPeer/Client/PeerClient.cs#L21)
+
+Even after fixing item 4, a per-call local `Stopwatch.StartNew()` has
+zero allocation difference and is clearer than the field.
+
+### 18. `RenameToInvalid` is dead code
+[FilesReceiver.cs:59-62](../src/QuicPeer/Server/FilesReceiver.cs#L59)
+
+Not a memory issue, but `_fileSystem.Path.ChangeExtension(...)` returns
+a new string and discards it; nothing actually renames. The corrupt
+file is left with the `.download` extension.
+
+## Notes
+
+- No LOH allocations were found — the 80 KB transfer buffer is
+  intentionally just under the 85 KB threshold.
+- Items 1, 2, and 5 are the remaining genuine growth-over-time leaks.
+- Item 7 is the biggest hot-path allocation win.
