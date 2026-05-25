@@ -18,7 +18,6 @@ public sealed class PeerClient : ClientBase, IPeerClient
     private readonly IPEndPoint _remoteEndpoint;
     private readonly IChecksumProvider _checksumProvider;
     private readonly CancellationTokenSource _cts;
-    private readonly Stopwatch _stopwatch = new();
     private QuicConnection? _connection;
     private bool _disposed;
 
@@ -76,25 +75,26 @@ public sealed class PeerClient : ClientBase, IPeerClient
         var checksum = _checksumProvider.GetChecksum(file);
         var metadata = new FileMetadata(file.Name, file.Length, checksum, dataStream.Id);
 
+        var stopwatch = new Stopwatch();
         try
         {
             await SendMetadata(metadata, metadataStream);
 
             await using var fileStream = file.OpenRead();
-            _stopwatch.Start();
+            stopwatch.Start();
             await fileStream.CopyToAsync(dataStream, Options.Transfer.BufferSize, _cts.Token);
-            _stopwatch.Stop();
+            stopwatch.Stop();
             dataStream.CompleteWrites();
             dataStream.Close();
         }
         finally
         {
-            _stopwatch.Stop();
+            stopwatch.Stop();
             await dataStream.DisposeAsync();
             await metadataStream.DisposeAsync();
         }
 
-        return new SendFileResult(_stopwatch.Elapsed);
+        return new SendFileResult(stopwatch.Elapsed);
     }
 
     private async Task SendMetadata(FileMetadata metadata, QuicStream metadataStream)

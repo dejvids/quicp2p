@@ -6,19 +6,9 @@ Completed and omitted:
 - Item 1 — `ConsoleApp._messages` unbounded growth (bounded `ServerMessageQueue` + direct drain in `ShowDataCommand`).
 - Item 2 — `ConnectionContext._files` unbounded growth (`TryRemove` on consume).
 - Item 3 — `PeerClient` `CancellationTokenSource` leak (constructor injection, single owner).
+- Item 4 — `PeerClient._stopwatch` reused across sends (replaced with a per-call local `Stopwatch`; also resolves item 17).
 
 ## High-impact
-
-### 4. `_stopwatch` is not reset between sends
-[PeerClient.cs:21,84,86,92](../src/QuicPeer/Client/PeerClient.cs#L21)
-
-`_stopwatch` is reused across calls but `Start()` resumes from the
-previous `Elapsed`. The second `SendFileAsync` reports
-`previous + current` time, third reports `previous + current + previous`,
-etc.
-
-**Fix:** use `Stopwatch.StartNew()` (local) per call, or call `Reset()`
-first.
 
 ### 5. `Task.Factory.StartNew(async () => ...)` returns `Task<Task>`
 [ConsoleApp.cs:62,67](../src/QuicPeer/ConsoleApp.cs#L62) and
@@ -160,12 +150,6 @@ call is dead code. (Folded into item 6's fix.)
 Not a memory issue, but `.Last()` on an array allocates an enumerator
 path; use `iPAddresses[^1]` for indexed access. Splitting on `":"` also
 breaks for IPv6 hostnames-with-port forms.
-
-### 17. Single-instance `Stopwatch` field
-[PeerClient.cs:21](../src/QuicPeer/Client/PeerClient.cs#L21)
-
-Even after fixing item 4, a per-call local `Stopwatch.StartNew()` has
-zero allocation difference and is clearer than the field.
 
 ### 18. `RenameToInvalid` is dead code
 [FilesReceiver.cs:59-62](../src/QuicPeer/Server/FilesReceiver.cs#L59)
