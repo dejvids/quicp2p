@@ -53,16 +53,18 @@ public class ConsoleApp : IHostedService
 
         var mainMenu = _consoleAccessor.SelectionPrompt(menuOptions);
 
-        try
+        AppRunner = Task.Run(async () =>
         {
-            AppRunner = Task.Factory.StartNew(async () => await ShowMenu(mainMenu, cancellationToken),
-                TaskCreationOptions.LongRunning);
-        }
-        catch (Exception ex)
-        {
-            _console.MarkupLine("Console app has been stopped due to unexpected error.");
-            _logger.LogCritical(ex, "Critical error in console app.");
-        }
+            try
+            {
+                await ShowMenu(mainMenu, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _console.MarkupLine("Console app has been stopped due to unexpected error.");
+                _logger.LogCritical(ex, "Critical error in console app.");
+            }
+        }, cancellationToken);
     }
 
     private async Task ShowMenu(IPrompt<string> mainMenu, CancellationToken cancellationToken)

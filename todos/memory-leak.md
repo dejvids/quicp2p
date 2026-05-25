@@ -7,25 +7,9 @@ Completed and omitted:
 - Item 2 — `ConnectionContext._files` unbounded growth (`TryRemove` on consume).
 - Item 3 — `PeerClient` `CancellationTokenSource` leak (constructor injection, single owner).
 - Item 4 — `PeerClient._stopwatch` reused across sends (replaced with a per-call local `Stopwatch`; also resolves item 17).
+- Item 5 — `Task.Factory.StartNew(async () => ...)` returning `Task<Task>` in `ConsoleApp.ShowMenu` (switched to `Task.Run` and moved the `try/catch` inside the lambda so faults are actually observed). `ServerBase.ListenConsoleMessages` and `PeerServer.OnPeerConnected` already used the async-aware `Task.Run` overload — no change needed there.
 
 ## High-impact
-
-### 5. `Task.Factory.StartNew(async () => ...)` returns `Task<Task>`
-[ConsoleApp.cs:62,67](../src/QuicPeer/ConsoleApp.cs#L62) and
-[ServerBase.cs:45](../src/QuicPeer/Server/ServerBase.cs#L45)
-
-```csharp
-AppRunner = Task.Factory.StartNew(async () => await ShowMenu(...), TaskCreationOptions.LongRunning);
-```
-`AppRunner` completes when the **outer** task starts the inner async
-method, not when the work finishes. Exceptions from
-`ShowMenu`/`ReadServerCommands`/`ListenConsoleMessages` are buried in an
-unobserved inner Task. The `_ = Task.Run(...)` form
-([PeerServer.cs:75](../src/QuicPeer/Server/PeerServer.cs#L75)) is fine;
-these `StartNew` calls are not.
-
-**Fix:** use `Task.Run` (which has an `async`-aware overload) or
-`.Unwrap()` the result.
 
 ## Medium-impact
 
@@ -162,7 +146,4 @@ file is left with the `.download` extension.
 
 - No LOH allocations were found — the 80 KB transfer buffer is
   intentionally just under the 85 KB threshold.
-- Item 5 is the remaining genuine growth-over-time concern (one of its
-  three sites — `ReadServerCommands` — was removed as part of the
-  item 1 fix; `ShowMenu` and `ListenConsoleMessages` still apply).
 - Item 7 is the biggest hot-path allocation win.
