@@ -8,30 +8,11 @@ Completed and omitted:
 - Item 3 — `PeerClient` `CancellationTokenSource` leak (constructor injection, single owner).
 - Item 4 — `PeerClient._stopwatch` reused across sends (replaced with a per-call local `Stopwatch`; also resolves item 17).
 - Item 5 — `Task.Factory.StartNew(async () => ...)` returning `Task<Task>` in `ConsoleApp.ShowMenu` (switched to `Task.Run` and moved the `try/catch` inside the lambda so faults are actually observed). `ServerBase.ListenConsoleMessages` and `PeerServer.OnPeerConnected` already used the async-aware `Task.Run` overload — no change needed there.
+- Item 6 — `OnTextStreamOpened` per-stream allocation and missing oversize handling (switched to `ArrayPool<byte>.Shared.Rent(1000)` with `try/finally Return`; oversized payloads abort the stream and surface a `[TRUNCATED MESSAGE]` notice. Also resolves item 15.). **Outstanding sub-items:** the buffer is still drained with a single `ReadAsync` rather than a loop, so a QUIC short-read can mis-classify large payloads as small, and a multi-byte UTF-8 sequence split across reads can decode incorrectly. Metadata streams still rely on the JSON fitting in one read.
 
 ## High-impact
 
 ## Medium-impact
-
-### 6. `OnTextStreamOpened` allocates a 1000-byte buffer per stream and assumes a single `Read`
-[ConnectionManager.cs:67-71](../src/QuicPeer/Server/ConnectionManager.cs#L67)
-
-```csharp
-var buffer = new byte[1000];
-Array.Clear(buffer, 0, buffer.Length);          // redundant: new byte[] is already zeroed
-var readBytes = await stream.ReadAsync(buffer, ct);
-var payload = buffer.AsSpan(0, readBytes);
-var message = Encoding.UTF8.GetString(payload);
-```
-Three problems on one hot path:
-- Fresh allocation per text stream → use
-  `ArrayPool<byte>.Shared.Rent(1000)` with `try/finally Return`.
-- A QUIC `ReadAsync` is **not guaranteed** to return the whole message
-  in one call. A long text or fragmented metadata gets silently
-  truncated, and a multi-byte UTF-8 sequence split across reads decodes
-  incorrectly. Read until `EOF` or use `ReadExactlyAsync` driven by a
-  length prefix.
-- Texts > 1000 bytes are silently dropped.
 
 ### 7. `PeersStore.Contains` recomputes SHA-256 on every call
 [PeersStore.cs:26-30](../src/QuicPeer/Server/PeersStore.cs#L26) and
@@ -121,12 +102,6 @@ instead.
 81 920 KB. The number is intentionally below the LOH threshold
 (~85,000 bytes), which is correct, but the comment misrepresents it by
 ~1000×.
-
-### 15. `Array.Clear` on freshly allocated array
-[ConnectionManager.cs:69](../src/QuicPeer/Server/ConnectionManager.cs#L69)
-
-`new byte[1000]` is zero-initialized by the runtime; the `Array.Clear`
-call is dead code. (Folded into item 6's fix.)
 
 ### 16. `EndpointParser.TryParseDnsEndpoint` returns `iPAddresses.Last()`
 [EndpointParser.cs:51](../src/QuicPeer/Client/EndpointParser.cs#L51)

@@ -1,4 +1,5 @@
-﻿using System.Net.Quic;
+﻿using System.Buffers;
+using System.Net.Quic;
 using System.Text;
 using QuicPeer.Common;
 using QuicPeer.Common.Dto;
@@ -25,7 +26,7 @@ public class ConnectionManager
         {
             streamHandlers.Add(HandleStream(stream, context, ct));
         }
-        
+
         await Task.WhenAll(streamHandlers);
     }
 
@@ -55,32 +56,43 @@ public class ConnectionManager
         {
             return;
         }
-        
+
         await _filesReceiver.ReceiveFileAsync(stream, fileMetadata, ct);
     }
 
     private async Task OnTextStreamOpened(QuicStream stream,
-        string remoteEndpoint, 
-        Action<FileMetadata> callback, 
+        string remoteEndpoint,
+        Action<FileMetadata> callback,
         CancellationToken ct)
     {
-        var buffer = new byte[1000];
-
-        Array.Clear(buffer, 0, buffer.Length);
-        var readBytes = await stream.ReadAsync(buffer, ct);
-        var payload = buffer.AsSpan(0, readBytes);
-        var message = Encoding.UTF8.GetString(payload);
-        await _messageQueue.EnqueueAsync(new TextReceived(remoteEndpoint,
-            message, TimeOnly.FromDateTime(DateTime.Now)));
-
-        if (TryParseToFileMetadata(message, out var metadata) && metadata is not null)
+        var buffer = ArrayPool<byte>.Shared.Rent(1000);
+        try
         {
-            callback.Invoke(metadata);
-            await ReplaySender(stream, ct);
+            var readBytes = await stream.ReadAsync(buffer,  ct);
+            if(readBytes >= buffer.Length)
+            {
+                stream.Abort(QuicAbortDirection.Both, 0x11);
+                return;
+            }
+
+            var message = Encoding.UTF8.GetString(buffer.AsSpan(0, readBytes));
+            
+            await _messageQueue.EnqueueAsync(new TextReceived(remoteEndpoint,
+                message, TimeOnly.FromDateTime(DateTime.Now)));
+
+            if (TryParseToFileMetadata(message, out var metadata) && metadata is not null)
+            {
+                callback.Invoke(metadata);
+                await ReplaySender(stream, ct);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
-    private static async Task ReplaySender(QuicStream stream,  CancellationToken ct)
+    private static async Task ReplaySender(QuicStream stream, CancellationToken ct)
     {
         stream.WriteByte(ControlCodes.MetadataReceived);
         await stream.FlushAsync(ct);
