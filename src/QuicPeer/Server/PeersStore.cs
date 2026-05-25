@@ -25,8 +25,8 @@ public sealed class PeersStore : IPeersStore, IDisposable
 
     public bool Contains(Certificate certificate)
     {
-        var fingerprint = certificate.GetFingerprint();
-        return _trustedPeers.Any(t => t.GetFingerprint().SequenceEqual(fingerprint));
+        var fingerprint = certificate.Fingerprint;
+        return _trustedPeers.Any(t => t.Fingerprint.SequenceEqual(fingerprint));
     }
 
     private List<Certificate> LoadTrustedPeers()

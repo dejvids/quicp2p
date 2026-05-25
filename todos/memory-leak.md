@@ -9,26 +9,11 @@ Completed and omitted:
 - Item 4 — `PeerClient._stopwatch` reused across sends (replaced with a per-call local `Stopwatch`; also resolves item 17).
 - Item 5 — `Task.Factory.StartNew(async () => ...)` returning `Task<Task>` in `ConsoleApp.ShowMenu` (switched to `Task.Run` and moved the `try/catch` inside the lambda so faults are actually observed). `ServerBase.ListenConsoleMessages` and `PeerServer.OnPeerConnected` already used the async-aware `Task.Run` overload — no change needed there.
 - Item 6 — `OnTextStreamOpened` per-stream allocation and missing oversize handling (switched to `ArrayPool<byte>.Shared.Rent(1000)` with `try/finally Return`; oversized payloads abort the stream and surface a `[TRUNCATED MESSAGE]` notice. Also resolves item 15.). **Outstanding sub-items:** the buffer is still drained with a single `ReadAsync` rather than a loop, so a QUIC short-read can mis-classify large payloads as small, and a multi-byte UTF-8 sequence split across reads can decode incorrectly. Metadata streams still rely on the JSON fitting in one read.
+- Item 7 — `PeersStore.Contains` recomputed SHA-256 per call. `Certificate.Fingerprint` is now a lazily-cached `byte[]` ([Certificate.cs:14](../src/QuicPeer/Common/Certificate.cs#L14)) and `PeersStore.Contains` compares against the cached value, so `GetCertHash` runs at most once per `Certificate`. Lookup is still a linear scan — fine for the expected N, and a `HashSet<string>` upgrade can be revisited if N grows.
 
 ## High-impact
 
 ## Medium-impact
-
-### 7. `PeersStore.Contains` recomputes SHA-256 on every call
-[PeersStore.cs:26-30](../src/QuicPeer/Server/PeersStore.cs#L26) and
-[Certificate.cs:62](../src/QuicPeer/Common/Certificate.cs#L62)
-
-```csharp
-return _trustedPeers.Any(t => t.GetFingerprint().SequenceEqual(fingerprint));
-```
-`GetFingerprint()` calls `X509Certificate2.GetCertHash(SHA256)` which
-**recomputes the hash and allocates a new `byte[]` every invocation**.
-With N trusted peers, every connection performs N+1 SHA-256s and N+1
-array allocations.
-
-**Fix:** cache the fingerprint as a precomputed `byte[]` (or `string`
-hex) on `Certificate` at construction time, or store a
-`HashSet<string>` keyed on hex fingerprint in `PeersStore`.
 
 ### 8. `Encoding.UTF8.GetBytes` + JSON string intermediate
 [PeerClient.cs:52,94-95](../src/QuicPeer/Client/PeerClient.cs#L52)
@@ -121,4 +106,3 @@ file is left with the `.download` extension.
 
 - No LOH allocations were found — the 80 KB transfer buffer is
   intentionally just under the 85 KB threshold.
-- Item 7 is the biggest hot-path allocation win.
