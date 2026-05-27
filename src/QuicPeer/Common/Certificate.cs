@@ -58,9 +58,7 @@ public sealed class Certificate : IDisposable
     }
 
     public bool IsExpired(TimeProvider timeProvider) =>
-        DateTimeOffset.TryParse(Value.GetExpirationDateString(), CultureInfo.CurrentCulture,
-            DateTimeStyles.None, out var expirationDate) &&
-        timeProvider.GetUtcNow() > expirationDate;
+        timeProvider.GetUtcNow() > Value.NotAfter;
 
     private byte[] GetFingerprint() =>
         Value.GetCertHash(HashAlgorithmName.SHA256);
