@@ -19,6 +19,11 @@ public class TestServer : ServerBase
     {
     }
 
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        await ExecuteAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         return RunServerAsync(stoppingToken);
@@ -27,10 +32,6 @@ public class TestServer : ServerBase
     protected override Task RunServerInternal(QuicListenerOptions options, CancellationToken stoppingToken)
     {
         IsListening = true;
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            Thread.SpinWait(1);
-        }
 
         return Task.CompletedTask;
     }

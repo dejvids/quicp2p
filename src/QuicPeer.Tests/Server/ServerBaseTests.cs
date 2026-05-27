@@ -22,16 +22,9 @@ public class ServerBaseTests
 
         var cts = new CancellationTokenSource(200);
 
-        await server.StartAsync(cts.Token);
-        try
-        {
-            await server.ExecuteTask!;
-        }
-        catch
-        {
-            // ignored
-        }
-
+        var exception = await Record.ExceptionAsync(async () => await server.StartAsync(cts.Token));
+        
+        Assert.IsType<OperationCanceledException>(exception, false);
         messageQueue.Received().DequeueAllAsync(Arg.Any<CancellationToken>());
     }
 
@@ -45,16 +38,9 @@ public class ServerBaseTests
 
         var cts = new CancellationTokenSource(200);
 
-        await server.StartAsync(cts.Token);
-        try
-        {
-            await server.ExecuteTask!;
-        }
-        catch
-        {
-            // ignored
-        }
-
+        var exception = await Record.ExceptionAsync(async () => await server.StartAsync(cts.Token));
+        
+        Assert.IsType<OperationCanceledException>(exception, false);
         Assert.False(server.IsListening);
     }
 
@@ -63,8 +49,8 @@ public class ServerBaseTests
     {
         var options = Substitute.For<IOptions<ServerOptions>>();
         options.Value.Returns(new ServerOptions
-        { 
-            ServerCertificate = new CertificateOptions() 
+        {
+            ServerCertificate = new CertificateOptions()
         });
 
         var messageQueue = Substitute.For<IMessageQueue<IClientMessage>>();
@@ -78,14 +64,7 @@ public class ServerBaseTests
         var cts = new CancellationTokenSource(200);
 
         await server.StartAsync(cts.Token);
-        try
-        {
-            await server.ExecuteTask!;
-        }
-        catch
-        {
-            // ignored
-        }
+
 
         Assert.True(server.IsListening);
     }
