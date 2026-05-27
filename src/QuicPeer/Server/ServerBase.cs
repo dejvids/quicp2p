@@ -13,7 +13,10 @@ public abstract class ServerBase : BackgroundService
 {
     private readonly IPeersStore _peersStore;
     private readonly IMessageQueue<IClientMessage> _messageQueue;
-    private TaskCompletionSource<X509Certificate2> CertificateLoaded { get; }
+    private readonly TaskCompletionSource _activatedTcs = new();
+    private readonly TaskCompletionSource<X509Certificate2> _certificateLoadedCts = new();
+
+    public Task Activated => _activatedTcs.Task;
 
     protected ServerBase(IOptions<ServerOptions> serverOptions,
         ILogger logger,
@@ -24,7 +27,6 @@ public abstract class ServerBase : BackgroundService
         _messageQueue = messageQueue;
         Logger = logger;
         Options = serverOptions.Value;
-        CertificateLoaded = new TaskCompletionSource<X509Certificate2>(TaskCreationOptions.AttachedToParent);
     }
 
     protected ILogger Logger { get; }
@@ -44,7 +46,7 @@ public abstract class ServerBase : BackgroundService
         {
             _ = Task.Run(async () => await ListenConsoleMessages(stoppingToken), stoppingToken);
             EnsureProtocolSupport();
-            var serverCertificate = await CertificateLoaded.Task.WaitAsync(stoppingToken);
+            var serverCertificate = await LoadCertificate(stoppingToken);
             var options = BootstrapServer(serverCertificate);
             await RunServerInternal(options, stoppingToken);
         }
@@ -53,6 +55,21 @@ public abstract class ServerBase : BackgroundService
             Logger.LogError(ex, "msquic is not available.");
         }
     }
+    protected virtual void EnsureProtocolSupport()
+    {
+        if (!QuicListener.IsSupported)
+        {
+            throw new NotSupportedException("QuicListener is not supported");
+        }
+
+        if (!QuicConnection.IsSupported)
+        {
+            throw new NotSupportedException("QuicConnection is not supported");
+        }
+    }
+
+    protected virtual async Task<X509Certificate2> LoadCertificate(CancellationToken stoppingToken) => 
+        await _certificateLoadedCts.Task.WaitAsync(stoppingToken);
 
     private async Task ListenConsoleMessages(CancellationToken stoppingToken)
     {
@@ -63,17 +80,19 @@ public abstract class ServerBase : BackgroundService
                 if (message is Unlocked unlockCommand)
                 {
                     var x509 = X509CertificateLoader.LoadPkcs12(unlockCommand.Certificate, unlockCommand.Password);
-                    CertificateLoaded.SetResult(x509);
+                    _certificateLoadedCts.SetResult(x509);
                 }
             }
+
+            _activatedTcs.SetResult();
         }
         catch (OperationCanceledException)
         {
-            CertificateLoaded.SetCanceled(stoppingToken);
+            _certificateLoadedCts.SetCanceled(stoppingToken);
         }
         catch (Exception e)
         {
-            CertificateLoaded.SetException(e);
+            _certificateLoadedCts.SetException(e);
         }
     }
 
@@ -135,17 +154,4 @@ public abstract class ServerBase : BackgroundService
     }
 
     protected abstract Task RunServerInternal(QuicListenerOptions options, CancellationToken stoppingToken);
-
-    private static void EnsureProtocolSupport()
-    {
-        if (!QuicListener.IsSupported)
-        {
-            throw new NotSupportedException("QuicListener is not supported");
-        }
-
-        if (!QuicConnection.IsSupported)
-        {
-            throw new NotSupportedException("QuicConnection is not supported");
-        }
-    }
 }

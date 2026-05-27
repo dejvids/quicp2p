@@ -87,6 +87,7 @@ public class ConsoleApp
                 if (await _consoleAccessor.ConfirmAsync("Do you want to close the app?", true, cancellationToken))
                 {
                     _appLifetime.StopApplication();
+                    _ = _activatedTcs.TrySetCanceled();
                     break;
                 }
 

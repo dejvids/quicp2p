@@ -1,71 +1,65 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NSubstitute;
+﻿using NSubstitute;
 using QuicPeer.Common.Messaging;
 using QuicPeer.Common.Messaging.ClientQueue;
-using QuicPeer.Options;
 using QuicPeer.Server;
-using QuicPeer.Tests.Common;
 
 namespace QuicPeer.Tests.Server;
 
 public class ServerBaseTests
 {
+    private readonly CancellationTokenSource _cts = new(500);
+
     [Fact]
     public async Task should_listen_for_console_messages()
     {
         var messageQueue = Substitute.For<IMessageQueue<IClientMessage>>();
-        var server = new TestServer(Substitute.For<IOptions<ServerOptions>>(),
-            Substitute.For<ILogger>(),
+        var server = new TestServer(
             Substitute.For<IPeersStore>(),
             messageQueue);
 
-        var cts = new CancellationTokenSource(200);
+        await server.StartAsync(_cts.Token);
+        await server.Activated.WaitAsync(_cts.Token);
 
-        var exception = await Record.ExceptionAsync(async () => await server.StartAsync(cts.Token));
-        
-        Assert.IsType<OperationCanceledException>(exception, false);
         messageQueue.Received().DequeueAllAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task should_not_start_listener_until_certificate_is_loaded()
     {
-        var server = new TestServer(Substitute.For<IOptions<ServerOptions>>(),
-            Substitute.For<ILogger>(),
+        var server = new TestServer(
             Substitute.For<IPeersStore>(),
-            Substitute.For<IMessageQueue<IClientMessage>>());
+            Substitute.For<IMessageQueue<IClientMessage>>())
+            .WithCertificateLoader(()=> throw new Exception("Cannot load certificate"));
 
-        var cts = new CancellationTokenSource(200);
+        var exception = await Record.ExceptionAsync(async () => await server.StartAsync(_cts.Token));
 
-        var exception = await Record.ExceptionAsync(async () => await server.StartAsync(cts.Token));
-        
-        Assert.IsType<OperationCanceledException>(exception, false);
+        Assert.NotNull(exception);
         Assert.False(server.IsListening);
     }
 
     [Fact]
     public async Task should_start_listener_if_certificate_is_loaded()
     {
-        var options = Substitute.For<IOptions<ServerOptions>>();
-        options.Value.Returns(new ServerOptions
-        {
-            ServerCertificate = new CertificateOptions()
-        });
-
-        var messageQueue = Substitute.For<IMessageQueue<IClientMessage>>();
-        messageQueue.DequeueAllAsync().ReturnsForAnyArgs(_ => AsyncEnumerable.Range(1, 1)
-        .Select(_ => new Unlocked(Convert.FromBase64String(CertificateTests.Pfx), CertificateTests.Password)));
-        var server = new TestServer(options,
-            Substitute.For<ILogger>(),
+        var server = new TestServer(
             Substitute.For<IPeersStore>(),
-            messageQueue);
+            Substitute.For<IMessageQueue<IClientMessage>>());
 
-        var cts = new CancellationTokenSource(200);
-
-        await server.StartAsync(cts.Token);
-
+        await server.StartAsync(_cts.Token);
 
         Assert.True(server.IsListening);
+    }
+
+    [Fact]
+    public async Task should_exit_if_msquic_is_notsupported()
+    {
+        var server = new TestServer(
+            Substitute.For<IPeersStore>(),
+            Substitute.For<IMessageQueue<IClientMessage>>())
+            .WithMsQuicValidator(() => throw new NotSupportedException());
+
+        await server.StartAsync(_cts.Token);
+
+        Assert.False(server.Activated.IsCompletedSuccessfully);
+        Assert.False(server.IsListening);
     }
 }

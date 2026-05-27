@@ -61,7 +61,7 @@ public sealed class PeerClient : ClientBase, IPeerClient
         var buffer = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetByteCount(message));
         try
         {
-            var payload = Encoding.UTF8.GetBytes(message, buffer);
+            _ = Encoding.UTF8.GetBytes(message, buffer);
             await textStream.WriteAsync(buffer);
             await textStream.FlushAsync(_cts.Token);
             textStream.CompleteWrites();
