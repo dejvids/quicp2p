@@ -58,7 +58,9 @@ public class FilesReceiver : IFilesReceiver
 
     private void RenameToInvalid(IFileInfo downloadFileInfo)
     {
-        _fileSystem.Path.ChangeExtension(downloadFileInfo.Name, "invalid");
+        var newFileName = _fileSystem.Path.ChangeExtension(downloadFileInfo.Name, "invalid");
+
+        downloadFileInfo.MoveTo(newFileName, true);
     }
 
     private void RenameFile(string originalFilename, IFileInfo downloadFileInfo)

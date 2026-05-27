@@ -11,7 +11,7 @@ public abstract class ClientBase
 {
     private readonly X509Certificate2 _certificate;
     protected ClientOptions Options { get; }
-    protected abstract Task RunClientInternal(QuicClientConnectionOptions options, CancellationToken ct);
+    protected abstract Task RunClientInternal(QuicClientConnectionOptions options);
 
     protected ClientBase(IOptions<ClientOptions> options, X509Certificate2 certificate)
     {
@@ -19,10 +19,10 @@ public abstract class ClientBase
         _certificate = certificate;
     }
 
-    public async Task RunClientAsync(CancellationToken ct)
+    public async Task RunClientAsync()
     {
         var options = BootstrapClient();
-        await RunClientInternal(options, ct);
+        await RunClientInternal(options);
     }
 
     private QuicClientConnectionOptions BootstrapClient()

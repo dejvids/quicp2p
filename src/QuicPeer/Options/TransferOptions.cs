@@ -4,7 +4,7 @@ public class TransferOptions
 {
     public const string SectionName = "Transfer";
 
-    public int BufferSize { get; init; } = 81_920; //Default: 81 920KB
+    public int BufferSize { get; init; } = 81_920; //Default: 80KiB
 }
 
 public class ServerTransferOptions : TransferOptions
