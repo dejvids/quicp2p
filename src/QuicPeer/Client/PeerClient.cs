@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.IO.Abstractions;
 using System.Net;
@@ -57,10 +58,18 @@ public sealed class PeerClient : ClientBase, IPeerClient
         var textStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, _cts.Token);
         textStream.WriteTimeout = 100;
 
-        var payload = Encoding.UTF8.GetBytes(message);
-        await textStream.WriteAsync(payload);
-        await textStream.FlushAsync(_cts.Token);
-        textStream.CompleteWrites();
+        var buffer = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetByteCount(message));
+        try
+        {
+            var payload = Encoding.UTF8.GetBytes(message, buffer);
+            await textStream.WriteAsync(buffer);
+            await textStream.FlushAsync(_cts.Token);
+            textStream.CompleteWrites();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     public async Task<SendFileResult> SendFileAsync(IFileInfo file)
@@ -100,9 +109,8 @@ public sealed class PeerClient : ClientBase, IPeerClient
     private async Task SendMetadata(FileMetadata metadata, QuicStream metadataStream)
     {
         const int timeout = 3000;
-        var jsonPayload = System.Text.Json.JsonSerializer.Serialize(metadata);
-        var payload = Encoding.UTF8.GetBytes(jsonPayload);
-        await metadataStream.WriteAsync(payload);
+        var jsonPayload = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(metadata);
+        await metadataStream.WriteAsync(jsonPayload);
         await metadataStream.FlushAsync(_cts.Token);
 
         var acknowledgement = new byte[1];

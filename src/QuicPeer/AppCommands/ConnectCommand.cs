@@ -10,7 +10,7 @@ public class ConnectCommand : AppCommand
 {
     private const string DisconnectCommand = "Disconnect";
     private readonly IPeerConnector _peerConnector;
-    private readonly AppCommand<IPeerClient>[] _subCommands;
+    private readonly Dictionary<string,AppCommand<IPeerClient>> _subCommands;
 
     public const string ConnectMenu = "connect-menu";
     public override string CommandName => "Connect";
@@ -23,9 +23,9 @@ public class ConnectCommand : AppCommand
         [FromKeyedServices(ConnectMenu)]IEnumerable<AppCommand> subCommands) : base(logger, consoleAccessor)
     {
         _peerConnector = peerConnector;
-        _subCommands =  subCommands.OfType<AppCommand<IPeerClient>>().ToArray();
+        _subCommands =  subCommands.OfType<AppCommand<IPeerClient>>().ToDictionary(c => c.CommandName);
 
-        _subMenuOptions = _subCommands.Select(c => c.CommandName).ToList();
+        _subMenuOptions = [.. _subCommands.Select(c => c.Key)];
         _subMenuOptions.Add(DisconnectCommand);
     }
 
@@ -82,7 +82,7 @@ public class ConnectCommand : AppCommand
                 break;
             }
             
-            var subCommand = _subCommands.FirstOrDefault(c => c.CommandName == clientCommand);
+            var subCommand = _subCommands.GetValueOrDefault(clientCommand);
             if (subCommand is null)
             {
                 Console.Clear();

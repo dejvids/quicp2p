@@ -71,9 +71,4 @@ public sealed class PeersStore : IPeersStore, IDisposable
         _trustedPeers.Clear();
         GC.SuppressFinalize(this);
     }
-    
-    ~PeersStore()
-    {
-        Dispose();
-    }
 }

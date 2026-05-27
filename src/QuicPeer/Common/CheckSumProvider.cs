@@ -4,7 +4,7 @@ using QuicPeer.Common.Exceptions;
 
 namespace QuicPeer.Common;
 
-public class CheckSumProvider : IChecksumProvider
+public class ChecksumProvider : IChecksumProvider
 {
     public string GetChecksum(IFileInfo file)
     {

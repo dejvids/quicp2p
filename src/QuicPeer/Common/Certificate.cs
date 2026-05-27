@@ -76,9 +76,4 @@ public sealed class Certificate : IDisposable
         Value.Dispose();
         GC.SuppressFinalize(this);
     }
-    
-    ~Certificate()
-    {
-        Dispose();
-    }
 }

@@ -19,7 +19,7 @@ builder.Services.AddScoped<IPeerConnector, PeerConnector>();
 builder.Services.AddSingleton<IPeerClientFactory, PeerClientFactory>();
 builder.Services.AddAppCommands();
 builder.Services.AddSingleton<IConsoleAccessor, ConsoleAccessor>();
-builder.Services.AddSingleton<IChecksumProvider, CheckSumProvider>();
+builder.Services.AddSingleton<IChecksumProvider, ChecksumProvider>();
 builder.Services.AddScoped<IFilesReceiver, FilesReceiver>();
 builder.Services.AddScoped<ConnectionManager>();
 builder.Services.AddSingleton<IFileSystem>(new FileSystem());

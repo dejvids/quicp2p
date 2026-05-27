@@ -16,7 +16,7 @@ public class ChecksumProviderTests
         var fileInfo = Substitute.For<IFileInfo>();
         fileInfo.Exists.Returns(false);
 
-        var exception = Record.Exception(() => new CheckSumProvider().GetChecksum(fileInfo));
+        var exception = Record.Exception(() => new ChecksumProvider().GetChecksum(fileInfo));
         Assert.IsType<FileNotFoundException>(exception);
     }
 
@@ -30,7 +30,7 @@ public class ChecksumProviderTests
         fileInfo.Exists.Returns(true);
         fileInfo.OpenRead().Returns(fileStreamMock);
         
-        var checksum = new CheckSumProvider().GetChecksum(fileInfo);
+        var checksum = new ChecksumProvider().GetChecksum(fileInfo);
         
         Assert.NotNull(checksum);
         Assert.Equal(64, checksum.Length);
@@ -48,7 +48,7 @@ public class ChecksumProviderTests
         fileInfo.OpenRead().Returns(fileStreamMock);
         
         var exception = Record.Exception(() => 
-            new CheckSumProvider().VerifyChecksum(fileInfo, "INVALID_CHECKSUM"));
+            new ChecksumProvider().VerifyChecksum(fileInfo, "INVALID_CHECKSUM"));
         
         Assert.IsType<DataIntegrityException>(exception);
     }
@@ -66,7 +66,7 @@ public class ChecksumProviderTests
         fileInfo.OpenRead().Returns(fileStreamMock);
         
         var exception = Record.Exception(() => 
-            new CheckSumProvider().VerifyChecksum(fileInfo, expectedChecksum));
+            new ChecksumProvider().VerifyChecksum(fileInfo, expectedChecksum));
         
         Assert.Null(exception);
     }
