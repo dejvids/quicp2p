@@ -4,7 +4,7 @@ using Spectre.Console;
 
 namespace QuicPeer;
 
-public class ConsoleApp : IHostedService
+public class ConsoleApp
 {
     private const string ExitCommand = "Exit";
     private readonly ILogger _logger;
@@ -13,9 +13,12 @@ public class ConsoleApp : IHostedService
     private readonly Dictionary<string, AppCommand> _appCommands;
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly UnlockCommand _unlockCommand;
+    private readonly TaskCompletionSource _activatedTcs = new();
 
     public const string MainMenu = "main-menu";
-    public Task AppRunner {get; private set;} = Task.CompletedTask;
+    public Task AppRunner { get; private set; } = Task.CompletedTask;
+    public Task Activated => _activatedTcs.Task;
+
     static ConsoleApp()
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -78,7 +81,7 @@ public class ConsoleApp : IHostedService
             }
 
             var userCommand = await mainMenu.ShowAsync(_console, cancellationToken);
-
+            
             if (userCommand.Equals(ExitCommand, StringComparison.OrdinalIgnoreCase))
             {
                 if (await _consoleAccessor.ConfirmAsync("Do you want to close the app?", true, cancellationToken))
@@ -96,6 +99,11 @@ public class ConsoleApp : IHostedService
             }
 
             result = await appCommand.Execute(cancellationToken);
+
+            if (!_activatedTcs.Task.IsCompleted)
+            {
+                _activatedTcs.SetResult();
+            }
         }
     }
 

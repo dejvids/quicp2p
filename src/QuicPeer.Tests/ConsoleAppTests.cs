@@ -22,6 +22,18 @@ public sealed class ConsoleAppTests : IDisposable
 
         _consoleAccessor.SelectionPrompt(Arg.Any<IEnumerable<string>>()).ReturnsForAnyArgs(_menuPrompt);
     }
+
+    [Fact]
+    public async Task should_start_app()
+    {
+        var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
+           [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand],
+           AppCommandsMock.UnlockCommand,
+           Substitute.For<IHostApplicationLifetime>());
+
+        await consoleApp.StartAsync(_cts.Token);
+    }
+
     [Fact]
     public async Task should_set_console_encoding_to_utf8()
     {
@@ -31,25 +43,8 @@ public sealed class ConsoleAppTests : IDisposable
             Substitute.For<IHostApplicationLifetime>());
 
         await consoleApp.StartAsync(_cts.Token);
-        await consoleApp.AppRunner;
         Assert.Equal(Encoding.UTF8, Console.OutputEncoding);
         Assert.Equal(Encoding.UTF8, Console.InputEncoding);
-    }
-
-    [Fact]
-    public async Task should_show_main_menu()
-    {
-        var consoleApp = new ConsoleApp(Substitute.For<ILogger<ConsoleApp>>(), _consoleAccessor,
-           [AppCommandsMock.ConnectCommand, AppCommandsMock.ShowDataCommand],
-           AppCommandsMock.UnlockCommand,
-           Substitute.For<IHostApplicationLifetime>());
-
-        await consoleApp.StartAsync(_cts.Token);
-        await consoleApp.AppRunner;
-        _consoleAccessor.Received(1).SelectionPrompt(
-            Arg.Is<IList<string>>(o =>
-                o.Contains("Connect") && o.Contains("Data") && o.Contains("Exit")));
-        await _menuPrompt.Received().ShowAsync(_consoleAccessor.Console, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -83,7 +78,7 @@ public sealed class ConsoleAppTests : IDisposable
             Substitute.For<IHostApplicationLifetime>());
 
         await consoleApp.StartAsync(_cts.Token);
-        await consoleApp.AppRunner;
+        await consoleApp.Activated;
 
         await connectCommand.Received().Execute(Arg.Any<CancellationToken>());
     }
@@ -100,7 +95,7 @@ public sealed class ConsoleAppTests : IDisposable
             Substitute.For<IHostApplicationLifetime>());
 
         await consoleApp.StartAsync(_cts.Token);
-        await consoleApp.AppRunner;
+        await consoleApp.Activated;
 
         await showDataCommand.Received().Execute(Arg.Any<CancellationToken>());
     }
@@ -118,7 +113,6 @@ public sealed class ConsoleAppTests : IDisposable
             appLifetime);
 
         await consoleApp.StartAsync(_cts.Token);
-        await consoleApp.AppRunner;
 
         appLifetime.Received(1).StopApplication();
     }

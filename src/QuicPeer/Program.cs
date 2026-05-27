@@ -14,7 +14,7 @@ using QuicPeer.Common.Messaging.ServerQueue;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSerilogLogging();
 builder.Services.AddHostedService<PeerServer>();
-builder.Services.AddHostedService<ConsoleApp>();
+builder.Services.AddSingleton<ConsoleApp>();
 builder.Services.AddScoped<IPeerConnector, PeerConnector>();
 builder.Services.AddSingleton<IPeerClientFactory, PeerClientFactory>();
 builder.Services.AddAppCommands();
@@ -28,6 +28,8 @@ builder.Services.AddSingleton<IMessageQueue<IClientMessage>, ClientMessageQueue>
 builder.Services.AddSingleton<IPeersStore, PeersStore>();
 builder.ConfigureOptions();
 
-var app = builder.Build();
-await app.StartAsync();
-await app.WaitForShutdownAsync();
+var server = builder.Build();
+await server.StartAsync();
+var consoleApp = server.Services.GetRequiredService<ConsoleApp>();
+await consoleApp.StartAsync(CancellationToken.None);
+await server.WaitForShutdownAsync();
