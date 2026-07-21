@@ -417,3 +417,5 @@ FodyWeavers.xsd
 *.msm
 *.msp
 /src/QuicPeer/Downloads
+*.key
+*.crt

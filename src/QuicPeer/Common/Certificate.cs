@@ -8,7 +8,10 @@ namespace QuicPeer.Common;
 public sealed class Certificate : IDisposable
 {
     private bool _disposed;
+    private byte[] _fingerprint;
     private X509Certificate2 Value { get; }
+
+    public byte[] Fingerprint => _fingerprint ??= GetFingerprint();
 
     public Certificate(X509Certificate2 value)
     {
@@ -55,11 +58,9 @@ public sealed class Certificate : IDisposable
     }
 
     public bool IsExpired(TimeProvider timeProvider) =>
-        DateTimeOffset.TryParse(Value.GetExpirationDateString(), CultureInfo.CurrentCulture,
-            DateTimeStyles.None, out var expirationDate) &&
-        timeProvider.GetUtcNow() > expirationDate;
+        timeProvider.GetUtcNow() > Value.NotAfter;
 
-    public byte[] GetFingerprint() =>
+    private byte[] GetFingerprint() =>
         Value.GetCertHash(HashAlgorithmName.SHA256);
 
     public void Dispose()
@@ -72,10 +73,5 @@ public sealed class Certificate : IDisposable
         _disposed = true;
         Value.Dispose();
         GC.SuppressFinalize(this);
-    }
-    
-    ~Certificate()
-    {
-        Dispose();
     }
 }

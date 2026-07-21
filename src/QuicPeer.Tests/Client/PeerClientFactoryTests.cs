@@ -16,8 +16,8 @@ public class PeerClientFactoryTests
         var clientFactory = new PeerClientFactory(Substitute.For<IOptions<ClientOptions>>(), 
             Substitute.For<IChecksumProvider>());
         
-        Assert.ThrowsAny<Exception>(() => 
-            clientFactory.CreatePeerClient(new IPEndPoint(IPAddress.Loopback, 500)));
+        Assert.ThrowsAny<Exception>(() =>
+            clientFactory.CreatePeerClient(new IPEndPoint(IPAddress.Loopback, 500), new CancellationTokenSource()));
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public class PeerClientFactoryTests
         
         clientFactory.SetCertificate(Convert.FromBase64String(CertificateTests.Pfx), CertificateTests.Password);
         
-        var client = clientFactory.CreatePeerClient(new IPEndPoint(IPAddress.Loopback, 500));
+        var client = clientFactory.CreatePeerClient(new IPEndPoint(IPAddress.Loopback, 500), new CancellationTokenSource());
         
         Assert.NotNull(client);
     }

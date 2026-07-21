@@ -1,4 +1,6 @@
-﻿using System.IO.Abstractions;
+using System.Buffers;
+using System.IO.Abstractions;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using QuicPeer.Common;
 using QuicPeer.Common.Dto;
@@ -21,13 +23,13 @@ public class FilesReceiver : IFilesReceiver
         _logger = logger;
         _fileSystem = fileSystem;
     }
-    
+
     public async Task ReceiveFileAsync(Stream stream, FileMetadata metadata, CancellationToken ct)
     {
-        IFileInfo downloadFileInfo;
+        DownloadedFile downloadedFile;
         try
         {
-            downloadFileInfo = await CopyToFile(stream, ct);
+            downloadedFile = await CopyToFile(stream, ct);
         }
         catch (Exception e)
         {
@@ -37,18 +39,18 @@ public class FilesReceiver : IFilesReceiver
 
         try
         {
-            _checksumProvider.VerifyChecksum(downloadFileInfo, metadata.Checksum);
+            _checksumProvider.VerifyChecksum(downloadedFile.Checksum, metadata.Checksum);
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Error while verifying a checksum of downloaded file.");
-            RenameToInvalid(downloadFileInfo);
+            RenameToInvalid(downloadedFile.File);
             return;
         }
 
         try
         {
-            RenameFile(metadata.FileName, downloadFileInfo);
+            RenameFile(metadata.FileName, downloadedFile.File);
         }
         catch (Exception e)
         {
@@ -58,7 +60,9 @@ public class FilesReceiver : IFilesReceiver
 
     private void RenameToInvalid(IFileInfo downloadFileInfo)
     {
-        _fileSystem.Path.ChangeExtension(downloadFileInfo.Name, "invalid");
+        var newFileName = _fileSystem.Path.ChangeExtension(downloadFileInfo.Name, "invalid");
+
+        downloadFileInfo.MoveTo(newFileName, true);
     }
 
     private void RenameFile(string originalFilename, IFileInfo downloadFileInfo)
@@ -93,24 +97,33 @@ public class FilesReceiver : IFilesReceiver
         return destinationPath;
     }
 
-    private async Task<IFileInfo> CopyToFile(Stream sourceStream, CancellationToken ct)
+    private async Task<DownloadedFile> CopyToFile(Stream sourceStream, CancellationToken ct)
     {
         var filePath = _fileSystem.Path.Combine(_options.DownloadsDirectory, _fileSystem.Path.GetRandomFileName());
         filePath = _fileSystem.Path.ChangeExtension(filePath, "download");
         var fileInfo = _fileSystem.FileInfo.New(filePath);
         _fileSystem.Directory.CreateDirectory(_options.DownloadsDirectory);
-        var fileStream = fileInfo.Create();
+        await using var fileStream = fileInfo.Create();
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = ArrayPool<byte>.Shared.Rent(_options.BufferSize);
         try
         {
-            await sourceStream.CopyToAsync(fileStream, _options.BufferSize, ct);
+            int read;
+            while ((read = await sourceStream.ReadAsync(buffer.AsMemory(0, _options.BufferSize), ct)) > 0)
+            {
+                hash.AppendData(buffer, 0, read);
+                await fileStream.WriteAsync(buffer.AsMemory(0, read), ct);
+            }
+
             await fileStream.FlushAsync(ct);
+            return new DownloadedFile(fileInfo, Convert.ToHexString(hash.GetHashAndReset()));
         }
         finally
         {
-            await fileStream.DisposeAsync();
+            ArrayPool<byte>.Shared.Return(buffer);
             await sourceStream.DisposeAsync();
         }
-
-        return fileInfo;
     }
+
+    private sealed record DownloadedFile(IFileInfo File, string Checksum);
 }

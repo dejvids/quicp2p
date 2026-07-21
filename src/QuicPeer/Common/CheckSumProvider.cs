@@ -4,7 +4,7 @@ using QuicPeer.Common.Exceptions;
 
 namespace QuicPeer.Common;
 
-public class CheckSumProvider : IChecksumProvider
+public class ChecksumProvider : IChecksumProvider
 {
     public string GetChecksum(IFileInfo file)
     {
@@ -22,13 +22,11 @@ public class CheckSumProvider : IChecksumProvider
         return sha256.ComputeHash(fileStream);
     }
 
-    public void VerifyChecksum(IFileInfo file, string checksum)
+    public void VerifyChecksum(string actualChecksum, string expectedChecksum)
     {
-        var actualChecksum = GetChecksum(file);
-
-        if (!actualChecksum.Equals(checksum, StringComparison.OrdinalIgnoreCase))
+        if (!actualChecksum.Equals(expectedChecksum, StringComparison.OrdinalIgnoreCase))
         {
-            throw new DataIntegrityException($"Checksum mismatch of file {file.FullName}");
+            throw new DataIntegrityException("Checksum mismatch");
         }
     }
 }

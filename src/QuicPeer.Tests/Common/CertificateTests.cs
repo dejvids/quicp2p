@@ -73,7 +73,7 @@ public class CertificateTests
             Convert.FromBase64String(Base64));
         var wrapper = new QuicPeer.Common.Certificate(cert);
 
-        var fingerprint = wrapper.GetFingerprint();
+        var fingerprint = wrapper.Fingerprint;
         var actualHash = string.Join(":", fingerprint.Select(b => $"{b:X2}"));
 
         Assert.Equal(Sha256Hash, actualHash);

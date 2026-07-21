@@ -62,7 +62,7 @@ public class FilesReceiverTests
         
         await filesReceiver.ReceiveFileAsync(Substitute.For<Stream>(), metadata, CancellationToken.None);
         
-        checksumProvider.Received(1).VerifyChecksum(Arg.Any<IFileInfo>(), Arg.Is<string>(x => x == metadata.Checksum));
+        checksumProvider.Received(1).VerifyChecksum(Arg.Any<string>(), Arg.Is<string>(x => x == metadata.Checksum));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class FilesReceiverTests
     {
         const string filename = "test.txt";
         var checksumProvider = Substitute.For<IChecksumProvider>();
-        checksumProvider.When(x => x.VerifyChecksum(Arg.Any<IFileInfo>(), Arg.Any<string>()))
+        checksumProvider.When(x => x.VerifyChecksum(Arg.Any<string>(), Arg.Any<string>()))
             .Do(_ => throw new DataIntegrityException("Checksum mismatch"));
         var metadata = DefaultFileMetadata();
         _ = MockFileSystem(_fileSystem, filename);
@@ -101,7 +101,7 @@ public class FilesReceiverTests
     }
 
     [Fact]
-    public async Task should_copy_from_source_to_target_stream()
+    public async Task should_read_source_stream_while_copying_to_target_stream()
     {
         const string filename = "test.txt";
         _ = MockFileSystem(_fileSystem, filename);
@@ -113,7 +113,7 @@ public class FilesReceiverTests
         
         await filesReceiver.ReceiveFileAsync(sourceStream, metadata, CancellationToken.None);
         
-        await sourceStream.Received(1).CopyToAsync(Arg.Any<FileSystemStream>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        _ = sourceStream.Received(1).ReadAsync(Arg.Any<Memory<byte>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

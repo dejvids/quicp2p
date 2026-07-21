@@ -36,7 +36,7 @@ jobs:
         shell: powershell
         run: |
           New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
+          dotnet tool update dotnet-sonarscanner --version 10.* --tool-path ${{ runner.temp }}\scanner
       - name: Begin Sonar Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

@@ -1,26 +1,24 @@
-﻿using System.Collections.Concurrent;
 using System.Text;
 using QuicPeer.AppCommands;
-using QuicPeer.Common.Messaging;
-using QuicPeer.Common.Messaging.ServerQueue;
 using Spectre.Console;
 
 namespace QuicPeer;
 
-public class ConsoleApp : IHostedService
+public class ConsoleApp
 {
     private const string ExitCommand = "Exit";
-    private readonly IMessageQueue<IServerMessage> _serverMessageQueue;
     private readonly ILogger _logger;
     private readonly IAnsiConsole _console;
     private readonly IConsoleAccessor _consoleAccessor;
     private readonly Dictionary<string, AppCommand> _appCommands;
-    private readonly ConcurrentQueue<TextReceived> _messages = new();
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly UnlockCommand _unlockCommand;
+    private readonly TaskCompletionSource _activatedTcs = new();
 
     public const string MainMenu = "main-menu";
-    public Task AppRunner {get; private set;} = Task.CompletedTask;
+    public Task AppRunner { get; private set; } = Task.CompletedTask;
+    public Task Activated => _activatedTcs.Task;
+
     static ConsoleApp()
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -29,7 +27,6 @@ public class ConsoleApp : IHostedService
 
     public ConsoleApp(ILogger<ConsoleApp> logger,
         IConsoleAccessor consoleAccessor,
-        IMessageQueue<IServerMessage> serverMessageQueue,
         [FromKeyedServices(MainMenu)] IEnumerable<AppCommand> appCommands,
         UnlockCommand unlockCommand,
         IHostApplicationLifetime appLifetime)
@@ -37,7 +34,6 @@ public class ConsoleApp : IHostedService
         _logger = logger;
         _consoleAccessor = consoleAccessor;
         _console = consoleAccessor.Console;
-        _serverMessageQueue = serverMessageQueue;
         _appLifetime = appLifetime;
         _unlockCommand = unlockCommand;
 
@@ -59,19 +55,19 @@ public class ConsoleApp : IHostedService
         };
 
         var mainMenu = _consoleAccessor.SelectionPrompt(menuOptions);
-        _ = Task.Factory.StartNew(async () => await ReadServerCommands(cancellationToken), cancellationToken,
-            TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-        try
+        AppRunner = Task.Run(async () =>
         {
-            AppRunner = Task.Factory.StartNew(async () => await ShowMenu(mainMenu, cancellationToken),
-                TaskCreationOptions.LongRunning);
-        }
-        catch (Exception ex)
-        {
-            _console.MarkupLine("Console app has been stopped due to unexpected error.");
-            _logger.LogCritical(ex, "Critical error in console app.");
-        }
+            try
+            {
+                await ShowMenu(mainMenu, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _console.MarkupLine("Console app has been stopped due to unexpected error.");
+                _logger.LogCritical(ex, "Critical error in console app.");
+            }
+        }, cancellationToken);
     }
 
     private async Task ShowMenu(IPrompt<string> mainMenu, CancellationToken cancellationToken)
@@ -85,12 +81,13 @@ public class ConsoleApp : IHostedService
             }
 
             var userCommand = await mainMenu.ShowAsync(_console, cancellationToken);
-
+            
             if (userCommand.Equals(ExitCommand, StringComparison.OrdinalIgnoreCase))
             {
                 if (await _consoleAccessor.ConfirmAsync("Do you want to close the app?", true, cancellationToken))
                 {
                     _appLifetime.StopApplication();
+                    _ = _activatedTcs.TrySetCanceled();
                     break;
                 }
 
@@ -102,13 +99,12 @@ public class ConsoleApp : IHostedService
                 continue;
             }
 
-            if (appCommand is ShowDataCommand dataCommand)
-            {
-                await dataCommand.Execute(_messages, cancellationToken);
-                continue;
-            }
-
             result = await appCommand.Execute(cancellationToken);
+
+            if (!_activatedTcs.Task.IsCompleted)
+            {
+                _activatedTcs.SetResult();
+            }
         }
     }
 
@@ -117,25 +113,5 @@ public class ConsoleApp : IHostedService
         _console.MarkupLine("Shutting down:");
         _logger.LogInformation("App stopped.");
         return Task.CompletedTask;
-    }
-
-    private async Task ReadServerCommands(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await foreach (var command in _serverMessageQueue.DequeueAllAsync(cancellationToken))
-            {
-                if (command is not TextReceived message)
-                {
-                    _logger.LogWarning("Unsupported command type {Type}", command.GetType().Name);
-                    continue;
-                }
-
-                _messages.Enqueue(message);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
     }
 }

@@ -6,6 +6,7 @@ using QuicPeer.AppCommands;
 using QuicPeer.Client.Abstraction;
 using QuicPeer.Common.Messaging;
 using QuicPeer.Common.Messaging.ClientQueue;
+using QuicPeer.Common.Messaging.ServerQueue;
 using QuicPeer.Options;
 
 namespace QuicPeer.Tests.AppCommands;
@@ -43,7 +44,9 @@ public static class AppCommandsMock
     public class ShowDataCommandMock : ShowDataCommand
     {
         public ShowDataCommandMock()
-            : base(Substitute.For<ILogger<ShowDataCommand>>(), Substitute.For<IConsoleAccessor>())
+            : base(Substitute.For<ILogger<ShowDataCommand>>(),
+                Substitute.For<IConsoleAccessor>(),
+                Substitute.For<IMessageQueue<IServerMessage>>())
         {
         }
 

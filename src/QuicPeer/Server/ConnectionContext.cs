@@ -31,8 +31,8 @@ public class ConnectionContext : IAsyncDisposable
         _files.AddOrUpdate(fileMetadata.DataStreamId, fileMetadata, (_, _) => fileMetadata);
     }
 
-    public FileMetadata? GetFileMetadata(long streamId) =>
-        _files.GetValueOrDefault(streamId);
+    public FileMetadata? ConsumeFileMetadata(long streamId) =>
+        _files.TryRemove(streamId, out var fileMetadata) ? fileMetadata : null;
 
     public async IAsyncEnumerable<QuicStream> AcceptIncomingStreams([EnumeratorCancellation] CancellationToken ct)
     {

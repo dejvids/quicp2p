@@ -38,9 +38,20 @@ public static class EndpointParser
 
     private static IPEndPoint TryParseDnsEndpoint(string endpointString, int defaultPort)
     {
+        if(IPEndPoint.TryParse(endpointString, out var ipEndpoint))
+        {
+            if(ipEndpoint.Port == 0)
+            {
+                ipEndpoint.Port = defaultPort;
+            }
+
+            return ipEndpoint;
+        }
+
+
         var parts = endpointString.Split(":");
         var host = parts[0];
-        var port = parts.Length == 2 && int.TryParse(parts[1], out var portParsed) ? portParsed : defaultPort;
+        var port = parts.Length > 1 && int.TryParse(parts[^1], out var portParsed) ? portParsed : defaultPort;
 
         var iPAddresses = Dns.GetHostAddresses(host);
         if (iPAddresses.Length == 0)
@@ -48,6 +59,6 @@ public static class EndpointParser
             throw new EndpointParsingException($"Could not resolve DNS for host: {host}");
         }
 
-        return new IPEndPoint(iPAddresses.Last(), port);
+        return new IPEndPoint(iPAddresses[^1], port);
     }
 }
