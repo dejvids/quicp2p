@@ -1,4 +1,4 @@
-using System.Buffers;
+﻿using System.Buffers;
 using System.Diagnostics;
 using System.IO.Abstractions;
 using System.Net;
@@ -58,11 +58,16 @@ public sealed class PeerClient : ClientBase, IPeerClient
         var textStream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, _cts.Token);
         textStream.WriteTimeout = 100;
 
-        var buffer = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetByteCount(message));
+        var byteCount = Encoding.UTF8.GetByteCount(message);
+        var buffer = ArrayPool<byte>.Shared.Rent(byteCount);
+
         try
         {
-            _ = Encoding.UTF8.GetBytes(message, buffer);
-            await textStream.WriteAsync(buffer);
+            var written = Encoding.UTF8.GetBytes(
+                message.AsSpan(),
+                buffer.AsSpan(0, byteCount));
+
+            await textStream.WriteAsync(buffer.AsMemory(0, written), _cts.Token);
             await textStream.FlushAsync(_cts.Token);
             textStream.CompleteWrites();
         }

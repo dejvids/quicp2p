@@ -10,35 +10,12 @@ Completed and omitted:
 - Item 5 — `Task.Factory.StartNew(async () => ...)` returning `Task<Task>` in `ConsoleApp.ShowMenu` (switched to `Task.Run` and moved the `try/catch` inside the lambda so faults are actually observed). `ServerBase.ListenConsoleMessages` and `PeerServer.OnPeerConnected` already used the async-aware `Task.Run` overload — no change needed there.
 - Item 6 — `OnTextStreamOpened` per-stream allocation and missing oversize handling (switched to `ArrayPool<byte>.Shared.Rent(1000)` with `try/finally Return`; oversized payloads abort the stream and surface a `[TRUNCATED MESSAGE]` notice. Also resolves item 15.). **Outstanding sub-items:** the buffer is still drained with a single `ReadAsync` rather than a loop, so a QUIC short-read can mis-classify large payloads as small, and a multi-byte UTF-8 sequence split across reads can decode incorrectly. Metadata streams still rely on the JSON fitting in one read.
 - Item 7 — `PeersStore.Contains` recomputed SHA-256 per call. `Certificate.Fingerprint` is now a lazily-cached `byte[]` ([Certificate.cs:14](../src/QuicPeer/Common/Certificate.cs#L14)) and `PeersStore.Contains` compares against the cached value, so `GetCertHash` runs at most once per `Certificate`. Lookup is still a linear scan — fine for the expected N, and a `HashSet<string>` upgrade can be revisited if N grows.
+- Item 8 — `PeerClient.SendMetadata` now uses `JsonSerializer.SerializeToUtf8Bytes(metadata)`, avoiding the intermediate JSON `string`. `SendAsync` rents its UTF-8 buffer from `ArrayPool<byte>`.
+- Item 9 — `FilesReceiver` computes SHA-256 incrementally while copying the received stream to disk, then verifies the resulting checksum without reopening and rereading the file.
 
 ## High-impact
 
 ## Medium-impact
-
-### 8. `Encoding.UTF8.GetBytes` + JSON string intermediate
-[PeerClient.cs:52,94-95](../src/QuicPeer/Client/PeerClient.cs#L52)
-
-```csharp
-var payload = Encoding.UTF8.GetBytes(message);                                // SendAsync
-var jsonPayload = System.Text.Json.JsonSerializer.Serialize(metadata);        // SendMetadata
-var payload = Encoding.UTF8.GetBytes(jsonPayload);
-```
-Two allocations where one would do.
-
-**Fix:** use `JsonSerializer.SerializeToUtf8Bytes(metadata)` to skip the
-intermediate `string`. For `SendAsync`, `Encoding.UTF8.GetByteCount` +
-`ArrayPool` rent + `GetBytes(message, span)` would also avoid the
-per-call allocation if `SendAsync` is used in a tight loop.
-
-### 9. `CheckSumProvider` reads the file twice on the receive path
-[CheckSumProvider.cs:9,25](../src/QuicPeer/Common/CheckSumProvider.cs#L9)
-
-`FilesReceiver.ReceiveFileAsync` calls `VerifyChecksum`, which calls
-`GetChecksum`, which opens the file and SHA-256s the entire body — but
-`Stream.CopyToAsync` already streamed the whole file once on receive.
-
-**Fix:** compute the hash incrementally as the file is copied (using
-`IncrementalHash`) to halve the I/O.
 
 ### 10. `Certificate` and `PeersStore` use a broken finalizer pattern
 [Certificate.cs:65-80](../src/QuicPeer/Common/Certificate.cs#L65),

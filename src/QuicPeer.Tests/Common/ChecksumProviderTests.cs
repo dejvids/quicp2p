@@ -40,15 +40,8 @@ public class ChecksumProviderTests
     [Fact]
     public void should_throw_exception_if_checksum_mismatch()
     {
-        byte[] data = [0xFF, 0xFF, 0xFF, 0xFF];
-        var fileStreamMock = MockFileStream(data);
-
-        var fileInfo = Substitute.For<IFileInfo>();
-        fileInfo.Exists.Returns(true);
-        fileInfo.OpenRead().Returns(fileStreamMock);
-        
         var exception = Record.Exception(() => 
-            new ChecksumProvider().VerifyChecksum(fileInfo, "INVALID_CHECKSUM"));
+            new ChecksumProvider().VerifyChecksum("ACTUAL_CHECKSUM", "INVALID_CHECKSUM"));
         
         Assert.IsType<DataIntegrityException>(exception);
     }
@@ -58,15 +51,8 @@ public class ChecksumProviderTests
     {
         const string expectedChecksum = "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e";
         
-        byte[] data = [0xFF, 0xFF, 0xFF, 0xFF];
-        var fileStreamMock = MockFileStream(data);
-
-        var fileInfo = Substitute.For<IFileInfo>();
-        fileInfo.Exists.Returns(true);
-        fileInfo.OpenRead().Returns(fileStreamMock);
-        
         var exception = Record.Exception(() => 
-            new ChecksumProvider().VerifyChecksum(fileInfo, expectedChecksum));
+            new ChecksumProvider().VerifyChecksum(expectedChecksum.ToUpperInvariant(), expectedChecksum));
         
         Assert.Null(exception);
     }
